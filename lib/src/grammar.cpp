@@ -5,6 +5,8 @@
 
 #include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/repository/include/qi_kwd.hpp>
+
 
 #include <lunar/parser.hpp>
 
@@ -36,67 +38,57 @@ struct skipper : public qi::grammar< Itr > {
     qi::rule< Itr > skip;
 };
 
-constexpr static const auto blank = "\n\t ";
-
 template< typename... T >
 using as_vector = qi::as< std::vector< T... > >;
 
 static const auto empty_records = std::vector< record > {};
 
+#define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
+
+template< typename Itr, typename Skip, int items, int records = 1 >
+struct fixed_record : qi::grammar< Itr, keyword(), Skip > {
+    fixed_record() : fixed_record::base_type( start ) {
+
+            start %= kword(sym)
+                   > qi::repeat(records)
+                        [qi::repeat(items)[qi::int_] >> qi::lit('/')]
+                   ;
+
+            qi::on_error< qi::fail >( start, std::cerr
+                << phx::val("")
+                << "error: expected [" << records << ", " << items << "]"
+                << std::endl
+            );
+        }
+
+    qi::symbols<> sym;
+    qi::rule< Itr, keyword(), Skip > start;
+};
+
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     using skip = skipper< Itr >;
+    using rule = qi::rule< Itr, keyword(), skip >;
 
     grammar() : grammar::base_type( start ) {
 
-        dimens  = nodefault( "DIMENS", 3 );
-        eqldims = nodefault( "EQLDIMS", 3 );
-        oil     = toggle( "OIL" );
-        water   = toggle( "WATER" );
-        gas     = toggle( "GAS" );
-        disgas  = toggle( "DISGAS" );
-        vapoil  = toggle( "VAPOIL" );
-        metric  = toggle( "METRIC" );
-        field   = toggle( "FIELD" );
-        nosim   = toggle( "NOSIM" );
+        toggles  = "OIL", "WATER", "DISGAS", "VAPOIL";
+        toggles += "METRIC", "FIELD", "LAB", "NOSIM";
+
+        f13.sym = "DIMENS", "EQLDIMS";
 
         start %= qi::string("RUNSPEC")
-                >> *( dimens
-                    | eqldims
-                    | oil
-                    | water
-                    | gas
-                    | disgas
-                    | vapoil
-                    | metric
-                    | field
-                    | nosim
+                >> *(
+                      f13
+                    | kword(toggles) >> qi::attr( empty_records )
                     )
             ;
+
     }
 
-    using rule = qi::rule< Itr, keyword(), skip >;
-
-    rule dimens, eqldims;
-    rule oil, water, gas, disgas, vapoil;
-    rule metric, field, nosim;
-    qi::rule< Itr, section(),       skip > start;
-
-    private:
-
-    static rule nodefault( std::string kw ,
-                           int items,
-                           int records = 1 ) {
-        return qi::string( kw ) >>
-                qi::repeat(records)[
-                    qi::repeat(items)[qi::int_] > qi::lit('/')
-                ]
-           ;
-    }
-
-    static rule toggle( std::string kw ) {
-        return qi::string( kw ) >> qi::attr( empty_records );
-    }
+    qi::symbols<> toggles;
+    fixed_record< Itr, skip, 3 > f13;
+    qi::rule< Itr, section(), skip > start;
 };
 
 section parse( std::string::const_iterator fst,
@@ -107,6 +99,7 @@ section parse( std::string::const_iterator fst,
     grm parser;
     section sec;
 
-    qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
+    auto ok = qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
+    if( !ok ) std::cerr << "PARSE FAILED" << std::endl;
     return sec;
 }
