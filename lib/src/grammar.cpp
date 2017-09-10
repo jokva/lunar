@@ -15,17 +15,8 @@ namespace phx       = boost::phoenix;
 namespace qi        = boost::spirit::qi;
 namespace ascii     = boost::spirit::ascii;
 
-BOOST_FUSION_ADAPT_STRUCT(
-    section,
-    (std::string, name),
-    (std::vector< keyword >, xs)
-)
-
-BOOST_FUSION_ADAPT_STRUCT(
-    keyword,
-    (std::string, name),
-    (std::vector< record >, xs)
-)
+BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
+BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
 
 template< typename Itr >
 struct skipper : public qi::grammar< Itr > {
@@ -45,26 +36,6 @@ static const auto empty_records = std::vector< record > {};
 
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
-template< typename Itr, typename Skip, int items, int records = 1 >
-struct fixed_record : qi::grammar< Itr, keyword(), Skip > {
-    fixed_record() : fixed_record::base_type( start ) {
-
-            start %= kword(sym)
-                   > qi::repeat(records)
-                        [qi::repeat(items)[qi::int_] >> qi::lit('/')]
-                   ;
-
-            qi::on_error< qi::fail >( start, std::cerr
-                << phx::val("")
-                << "error: expected [" << records << ", " << items << "]"
-                << std::endl
-            );
-        }
-
-    qi::symbols<> sym;
-    qi::rule< Itr, keyword(), Skip > start;
-};
-
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     using skip = skipper< Itr >;
@@ -74,12 +45,25 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
         toggles  = "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
+        fix13 = "DIMENS", "EQLDIMS";
 
-        f13.sym = "DIMENS", "EQLDIMS";
+        simple %= qi::eps > qi::repeat(qi::_r1)[
+                    qi::repeat(qi::_r2)[ qi::int_ ] >> qi::lit('/')
+                ];
+
+        qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
+                << "error: expected ["
+                << qi::_r1 << ", " << qi::_r2
+                << "] at:"
+                << std::endl
+                << phx::construct< std::string >( qi::_3, qi::_2 )
+                << std::endl
+        );
+
 
         start %= qi::string("RUNSPEC")
                 >> *(
-                      f13
+                      kword(fix13) >> simple(1, 3)
                     | kword(toggles) >> qi::attr( empty_records )
                     )
             ;
@@ -87,7 +71,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     }
 
     qi::symbols<> toggles;
-    fixed_record< Itr, skip, 3 > f13;
+    qi::symbols<> fix13;
+    qi::rule< Itr, std::vector< record >(int, int), skip > simple;
     qi::rule< Itr, section(), skip > start;
 };
 
