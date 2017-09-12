@@ -40,8 +40,8 @@ static const auto empty_records = std::vector< record > {};
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
-    using skip = skipper< Itr >;
-    using rule = qi::rule< Itr, keyword(), skip >;
+    template< typename T >
+    using rule = qi::rule< Itr, T, skipper< Itr > >;
 
     grammar() : grammar::base_type( start ) {
 
@@ -74,8 +74,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
     qi::symbols<> toggles;
     qi::symbols<> fix13;
-    qi::rule< Itr, std::vector< record >(int, int), skip > simple;
-    qi::rule< Itr, section(), skip > start;
+    rule< std::vector< record >(int, int) > simple;
+    rule< section() > start;
 };
 
 }
