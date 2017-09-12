@@ -18,6 +18,8 @@ namespace ascii     = boost::spirit::ascii;
 BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
 
+namespace {
+
 template< typename Itr >
 struct skipper : public qi::grammar< Itr > {
     skipper() : skipper::base_type( skip ) {
@@ -75,6 +77,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     qi::rule< Itr, std::vector< record >(int, int), skip > simple;
     qi::rule< Itr, section(), skip > start;
 };
+
+}
 
 section parse( std::string::const_iterator fst,
                std::string::const_iterator lst ) {
