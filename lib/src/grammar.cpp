@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 
+#define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #define BOOST_SPIRIT_DEBUG 1
 
 #include <boost/spirit/include/phoenix.hpp>
@@ -38,6 +39,8 @@ static const auto empty_records = std::vector< record > {};
 
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
+namespace bf = boost::fusion;
+
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
@@ -50,7 +53,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         fix13 = "DIMENS", "EQLDIMS";
 
         simple %= qi::eps > qi::repeat(qi::_r1)[
-                    qi::repeat(qi::_r2)[ qi::int_ ] >> qi::lit('/')
+                    as_vector< int >()[qi::repeat(qi::_r2)[ qi::int_ ]]
+                    >> qi::lit('/')
                 ];
 
         qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
@@ -62,13 +66,22 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                 << std::endl
         );
 
-
         start %= qi::string("RUNSPEC")
                 >> *(
                       kword(fix13) >> simple(1, 3)
                     | kword(toggles) >> qi::attr( empty_records )
+                    | qi::string("SWATINIT") >> qi::repeat(1)[
+                        as_vector< double >()[
+                            +qi::double_
+                         |
+                            qi::lexeme[qi::int_ >> qi::lit('*') >> qi::double_]
+                      ]
+
+                      >> qi::lit('/')]
                     )
-            ;
+                ;
+
+
 
     }
 
