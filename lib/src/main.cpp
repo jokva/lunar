@@ -8,22 +8,16 @@
 namespace std {
 
 template< typename T >
-std::ostream& operator<<(std::ostream& stream, const std::vector< T >& v ) {
-    for( auto&& x : v ) stream << x << " ";
+std::ostream& operator<<( std::ostream& stream, const std::vector< T >& xs ) {
+    for( auto x : xs ) stream << x << " ";
     return stream;
 }
 
 }
 
-std::ostream& operator<<( std::ostream& stream, const item& i ) {
-    stream << "item ( ";
-    for( auto x : i ) stream << x << " ";
-    return stream << ")";
-}
-
 std::ostream& operator<<( std::ostream& stream, const record& r ) {
     stream << "record { ";
-    for( auto& x : r ) stream << x << " ";
+    for( auto& x : r ) stream << "item ( " << x << " ) ";
     return stream << "}";
 }
 

@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 
+#define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #define BOOST_SPIRIT_DEBUG 1
 
 #include <boost/spirit/include/phoenix.hpp>
@@ -38,8 +39,23 @@ static const auto empty_records = std::vector< record > {};
 
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
+namespace bf = boost::fusion;
+
+template< typename Itr >
+qi::rule< Itr, std::vector< double >(), skipper< Itr > > ndef =
+    +( +qi::lexeme[qi::double_ >> !qi::lit('*')]
+      | qi::omit[qi::lexeme[qi::int_ >> '*' >> qi::double_][
+            phx::insert( qi::_val, phx::end(qi::_val),
+                                   phx::at_c< 0 >(qi::_1),
+                                   phx::at_c< 1 >(qi::_1) )
+                ]] >> qi::attr( qi::_val )
+    )
+;
+
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
+    template< typename T >
+    using rule = qi::rule< Itr, T, skipper< Itr > >;
 
     grammar() : grammar::base_type( start ) {
 
@@ -48,7 +64,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         fix13 = "DIMENS", "EQLDIMS";
 
         simple %= qi::eps > qi::repeat(qi::_r1)[
-                    qi::repeat(qi::_r2)[ qi::int_ ]
+                    as_vector< int >()[qi::repeat(qi::_r2)[ qi::int_ ]]
                 ];
 
         qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
@@ -60,20 +76,22 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                 << std::endl
         );
 
-
         start %= qi::string("RUNSPEC")
                 >> *(
                       kword(fix13) >> simple(1, 3)
                     | kword(toggles) >> qi::attr( empty_records )
+                    | qi::string("SWATINIT") >> qi::repeat(1)[ ndef< Itr > ]
                     )
-            ;
+                ;
+
+
 
     }
 
     qi::symbols<> toggles;
     qi::symbols<> fix13;
-    rule< Itr, std::vector< record >(int, int) > simple;
-    rule< Itr, section() > start;
+    rule< std::vector< record >(int, int) > simple;
+    rule< section() > start;
 };
 
 }

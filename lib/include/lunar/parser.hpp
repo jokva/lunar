@@ -4,7 +4,13 @@
 #include <string>
 #include <vector>
 
-using item   = std::vector< int >;
+#include <boost/variant.hpp>
+
+using item = boost::variant<
+    std::vector< int >,
+    std::vector< double >
+>;
+
 using record = std::vector< item >;
 
 struct keyword {

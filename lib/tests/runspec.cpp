@@ -87,8 +87,7 @@ BOOST_AUTO_TEST_CASE( swatinit ) {
 RUNSPEC
 
 SWATINIT
--- 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 /
-10*0.25 /
+    10*0.25 /
 )";
     auto sec = parse( input.begin(), input.end() );
     const auto& kw = at( sec, "SWATINIT" ).at( 0 );
