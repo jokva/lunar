@@ -26,6 +26,7 @@ struct skipper : public qi::grammar< Itr > {
     skipper() : skipper::base_type( skip ) {
         skip = ascii::space
              | (qi::lit("--") >> *(qi::char_ - qi::eol) >> qi::eol)
+             // TODO: skip after /
              ;
     };
 
@@ -40,6 +41,24 @@ static const auto empty_records = std::vector< record > {};
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
 namespace bf = boost::fusion;
+
+template< typename Itr >
+struct nodefault : qi::grammar< Itr, std::vector< double >(), skipper< Itr > > {
+    nodefault() : nodefault::base_type( start ) {
+        start %= +(
+              +(qi::lexeme[qi::double_ >> !qi::lit('*')])
+            | qi::omit[qi::lexeme[qi::int_ >> '*' >> qi::double_]
+                [ phx::insert( qi::_val, phx::end(qi::_val),
+                                         phx::at_c< 0 >(qi::_1),
+                                         phx::at_c< 1 >(qi::_1))
+                ]] >> qi::attr( qi::_val )
+        ) >> '/';
+    }
+
+    qi::rule< Itr, std::vector< double >(), skipper< Itr > > start;
+};
+
+template< typename Itr > nodefault< Itr > ndef;
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
@@ -70,14 +89,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                 >> *(
                       kword(fix13) >> simple(1, 3)
                     | kword(toggles) >> qi::attr( empty_records )
-                    | qi::string("SWATINIT") >> qi::repeat(1)[
-                        as_vector< double >()[
-                            +qi::double_
-                         |
-                            qi::lexeme[qi::int_ >> qi::lit('*') >> qi::double_]
-                      ]
-
-                      >> qi::lit('/')]
+                    | qi::string("SWATINIT") >> qi::repeat(4)[ ndef< Itr > ]
                     )
                 ;
 
