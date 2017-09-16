@@ -41,10 +41,23 @@ static const auto empty_records = std::vector< record > {};
 
 namespace bf = boost::fusion;
 
+/*
+ * compile-time map some data type to its parser, in order to allow rules to be
+ * parametrised over expected return type. Instead of having two rules,
+ * int_item and double_item, a template rule item< int|double > can be used
+ * instead.
+ *
+ * Instantiating the value parser in a rule is somewhat tricky:
+ *      typename num< T >::p()
+ */
 template< typename T > struct num;
 template<> struct num< int >    { using p = decltype( qi::int_ ); };
 template<> struct num< double > { using p = decltype( qi::double_ ); };
 
+/*
+ * The basic rule for parsing a non-defaultable item entry, i.e. a list of a
+ * single data type, possibly with repetition, into a vector.
+ */
 template< typename Itr, typename T >
 qi::rule< Itr, std::vector< T >(), skipper< Itr > > item =
     +( +qi::lexeme[typename num< T >::p() >> !qi::lit('*')]
