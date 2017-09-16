@@ -128,3 +128,126 @@ DIMENS
     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
                                    tgt.begin(), tgt.end() );
 }
+
+BOOST_AUTO_TEST_CASE( boolean_string_yes ) {
+    const std::string inputs[] = {
+R"(
+RUNSPEC
+GRIDOPTS
+    'YES' 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'Y' 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    YES 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    Y 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'yes' 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'y' 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    yes 0 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    y 0 /
+)"
+
+};
+    for( const auto& input : inputs ) {
+        auto sec = parse( input.begin(), input.end() );
+        const auto& dimens = at( sec, "GRIDOPTS" ).at( 0 );
+        std::vector< int > tgt = { 1, 0 };
+        auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
+        BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                       tgt.begin(), tgt.end() );
+    }
+}
+
+BOOST_AUTO_TEST_CASE( boolean_string_no ) {
+    const std::string inputs[] = {
+R"(
+RUNSPEC
+GRIDOPTS
+    'NO' 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'N' 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    NO 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    N 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'n' 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    'n' 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    no 1 /
+)",
+
+R"(
+RUNSPEC
+GRIDOPTS
+    n 1 /
+)"
+
+};
+
+    for( const auto& input : inputs ) {
+        auto sec = parse( input.begin(), input.end() );
+        const auto& dimens = at( sec, "GRIDOPTS" ).at( 0 );
+        std::vector< int > tgt = { 0, 1 };
+        auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
+        BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                       tgt.begin(), tgt.end() );
+    }
+}

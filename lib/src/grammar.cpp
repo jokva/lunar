@@ -69,6 +69,33 @@ qi::rule< Itr, std::vector< T >(), skipper< Itr > > item =
     )
 ;
 
+
+/*
+ * spell out all accepted up/lowcase variations of yes/no, to avoid introducing
+ * a new rule just for no-casing
+ */
+struct yesnoc : public qi::symbols< char, int > {
+    yesnoc() {
+        add ("'yes'",   1)
+            ( "yes",    1)
+            ("'y'",     1)
+            ( "y",      1)
+            ("'YES'",   1)
+            ( "YES",    1)
+            ("'Y'",     1)
+            ( "Y",      1)
+            ("'no'",    0)
+            ( "no",     0)
+            ("'n'",     0)
+            ( "n",      0)
+            ("'NO'",    0)
+            ( "NO",     0)
+            ("'N'",     0)
+            ( "N",      0)
+            ;
+    }
+} yesno;
+
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
@@ -98,11 +125,11 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                       kword(fix13) >> qi::repeat(1)[ item< Itr, int > ]
                     | kword(toggles) >> qi::attr( empty_records )
                     | qi::string("SWATINIT") >> qi::repeat(1)[ item< Itr, double > ]
+                    | qi::string("GRIDOPTS")
+                        >> qi::repeat(1)[
+                        as_vector< int >()[yesno >> *qi::int_ ]]
                     )
                 ;
-
-
-
     }
 
     qi::symbols<> toggles;
