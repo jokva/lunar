@@ -24,7 +24,7 @@ template< typename Itr >
 struct skipper : public qi::grammar< Itr > {
     skipper() : skipper::base_type( skip ) {
         skip = ascii::space
-             | (qi::lit("--") >> *(qi::char_ - qi::eol) >> qi::eol)
+             | (qi::lit("--") | '/') >> *(qi::char_ - qi::eol) >> qi::eol
              ;
     };
 
@@ -40,8 +40,6 @@ static const auto empty_records = std::vector< record > {};
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
-    template< typename T >
-    using rule = qi::rule< Itr, T, skipper< Itr > >;
 
     grammar() : grammar::base_type( start ) {
 
@@ -50,7 +48,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         fix13 = "DIMENS", "EQLDIMS";
 
         simple %= qi::eps > qi::repeat(qi::_r1)[
-                    qi::repeat(qi::_r2)[ qi::int_ ] >> qi::lit('/')
+                    qi::repeat(qi::_r2)[ qi::int_ ]
                 ];
 
         qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
@@ -74,8 +72,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
     qi::symbols<> toggles;
     qi::symbols<> fix13;
-    rule< std::vector< record >(int, int) > simple;
-    rule< section() > start;
+    rule< Itr, std::vector< record >(int, int) > simple;
+    rule< Itr, section() > start;
 };
 
 }

@@ -25,6 +25,30 @@ bool has_keyword( const std::vector< keyword >& xs, const std::string& key ) {
     return std::find( xs.begin(), xs.end(), key ) != xs.end();
 }
 
+struct size : public boost::static_visitor< size_t > {
+    template< typename T >
+    size_t operator()( const T& v ) const { return v.size(); }
+};
+
+BOOST_AUTO_TEST_CASE(text_after_slash) {
+    const std::string input = R"(
+RUNSPEC
+
+DIMENS
+10 20 30 / text-after-slash
+
+OIL
+)";
+
+    auto sec = parse( input.begin(), input.end() );
+    BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
+    BOOST_CHECK( has_keyword( sec.xs, "DIMENS" ) );
+    BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
+    auto& dimens = at( sec, "DIMENS" ).at( 0 );
+    BOOST_CHECK_EQUAL( 3, boost::apply_visitor( size(), dimens.at( 0 ) ) );
+
+}
+
 BOOST_AUTO_TEST_CASE(toggles) {
     const std::string input = R"(
 RUNSPEC
@@ -63,8 +87,8 @@ BOOST_AUTO_TEST_CASE( swatinit ) {
 RUNSPEC
 
 SWATINIT
-0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 /
--- 10*0.25 /
+-- 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 /
+10*0.25 /
 )";
     auto sec = parse( input.begin(), input.end() );
     const auto& kw = at( sec, "SWATINIT" ).at( 0 );
