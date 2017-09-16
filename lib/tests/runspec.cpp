@@ -98,3 +98,33 @@ SWATINIT
     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
                                    tgt.begin(), tgt.end() );
 }
+
+BOOST_AUTO_TEST_CASE( repeat_int ) {
+    const std::string input = R"(
+RUNSPEC
+
+DIMENS
+    3*10 /
+)";
+    auto sec = parse( input.begin(), input.end() );
+    const auto& dimens = at( sec, "DIMENS" ).at( 0 );
+    std::vector< int > tgt( 3, 10 );
+    auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
+    BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                   tgt.begin(), tgt.end() );
+}
+
+BOOST_AUTO_TEST_CASE( repeat_int_mixed ) {
+    const std::string input = R"(
+RUNSPEC
+
+DIMENS
+    5 2*10 /
+)";
+    auto sec = parse( input.begin(), input.end() );
+    const auto& dimens = at( sec, "DIMENS" ).at( 0 );
+    std::vector< int > tgt = { 5, 10, 10 };
+    auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
+    BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                   tgt.begin(), tgt.end() );
+}

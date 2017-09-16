@@ -42,7 +42,7 @@ static const auto empty_records = std::vector< record > {};
 namespace bf = boost::fusion;
 
 template< typename Itr >
-qi::rule< Itr, std::vector< double >(), skipper< Itr > > ndef =
+qi::rule< Itr, std::vector< double >(), skipper< Itr > > ditem =
     +( +qi::lexeme[qi::double_ >> !qi::lit('*')]
       | qi::omit[qi::lexeme[qi::int_ >> '*' >> qi::double_][
             phx::insert( qi::_val, phx::end(qi::_val),
@@ -51,6 +51,18 @@ qi::rule< Itr, std::vector< double >(), skipper< Itr > > ndef =
                 ]] >> qi::attr( qi::_val )
     )
 ;
+
+template< typename Itr >
+qi::rule< Itr, std::vector< int >(), skipper< Itr > > iitem =
+    +( +qi::lexeme[qi::int_ >> !qi::lit('*')]
+      | qi::omit[qi::lexeme[qi::int_ >> '*' >> qi::int_][
+            phx::insert( qi::_val, phx::end(qi::_val),
+                                   phx::at_c< 0 >(qi::_1),
+                                   phx::at_c< 1 >(qi::_1) )
+                ]] >> qi::attr( qi::_val )
+    )
+;
+
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
@@ -78,9 +90,9 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
         start %= qi::string("RUNSPEC")
                 >> *(
-                      kword(fix13) >> simple(1, 3)
+                      kword(fix13) >> qi::repeat(1)[ iitem< Itr > ]
                     | kword(toggles) >> qi::attr( empty_records )
-                    | qi::string("SWATINIT") >> qi::repeat(1)[ ndef< Itr > ]
+                    | qi::string("SWATINIT") >> qi::repeat(1)[ ditem< Itr > ]
                     )
                 ;
 
