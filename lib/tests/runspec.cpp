@@ -251,3 +251,36 @@ GRIDOPTS
                                        tgt.begin(), tgt.end() );
     }
 }
+
+BOOST_AUTO_TEST_CASE( repeat_defaulted ) {
+    const std::string input = R"(
+RUNSPEC
+
+DIMENS
+    3* /
+)";
+
+    auto sec = parse( input.begin(), input.end() );
+    const auto& kw = at( sec, "DIMENS" ).at( 0 ).at( 0 );
+    auto& vals = boost::get< std::vector< int > >( kw );
+    std::vector< int > tgt( 3, std::numeric_limits< int >::min() );
+    BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                   tgt.begin(), tgt.end() );
+}
+
+BOOST_AUTO_TEST_CASE( str_to_enum_ENDSCALE ) {
+    const std::string input = R"(
+RUNSPEC
+
+ENDSCALE
+    -- NODIR 1 / -- this should fail
+    NODIR IRREVERS /
+)";
+
+    auto sec = parse( input.begin(), input.end() );
+    const auto& kw = at( sec, "ENDSCALE" ).at( 0 ).at( 0 );
+    auto& vals = boost::get< std::vector< int > >( kw );
+    std::vector< int > tgt = { 0, 1 };
+    BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
+                                   tgt.begin(), tgt.end() );
+}

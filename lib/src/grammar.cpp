@@ -1,3 +1,4 @@
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -51,8 +52,14 @@ namespace bf = boost::fusion;
  *      typename num< T >::p()
  */
 template< typename T > struct num;
-template<> struct num< int >    { using p = decltype( qi::int_ ); };
-template<> struct num< double > { using p = decltype( qi::double_ ); };
+template<> struct num< int >    {
+    using p     = decltype( qi::int_ );
+    //constexpr static def = std::numeric_limits< int >::min();
+};
+template<> struct num< double > {
+    using p = decltype( qi::double_ );
+    //constexpr static auto def = std::numeric_limits< double >::quiet_NaN();
+};
 
 /*
  * The basic rule for parsing a non-defaultable item entry, i.e. a list of a
@@ -61,7 +68,9 @@ template<> struct num< double > { using p = decltype( qi::double_ ); };
 template< typename Itr, typename T >
 qi::rule< Itr, std::vector< T >(), skipper< Itr > > item =
     +( +qi::lexeme[typename num< T >::p() >> !qi::lit('*')]
-      | qi::omit[qi::lexeme[qi::int_ >> '*' >> typename num< T >::p()][
+      | qi::omit[qi::lexeme[
+        qi::int_ >> '*' >> (typename num< T >::p()
+                          | ' ' >> qi::attr( std::numeric_limits< T >::min())) ][
             phx::insert( qi::_val, phx::end(qi::_val),
                                    phx::at_c< 0 >(qi::_1),
                                    phx::at_c< 1 >(qi::_1) )
@@ -96,6 +105,29 @@ struct yesnoc : public qi::symbols< char, int > {
     }
 } yesno;
 
+namespace ENDSCALE {
+
+enum dir { NODIR, DIRECT };
+enum rev { REVERS, IRREVERS };
+
+struct symdirc : public qi::symbols< char, int > {
+    symdirc() {
+        add ( "NODIR",  NODIR )
+            ( "DIRECT", DIRECT )
+            ;
+    }
+} symdir;
+
+struct symrevc : public qi::symbols< char, int > {
+    symrevc() {
+        add ( "REVERS",   REVERS )
+            ( "IRREVERS", IRREVERS )
+            ;
+    }
+} symrev;
+
+}
+
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
@@ -128,6 +160,11 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                     | qi::string("GRIDOPTS")
                         >> qi::repeat(1)[
                         as_vector< int >()[yesno >> *qi::int_ ]]
+                    | qi::string("ENDSCALE") >>
+                        qi::repeat(1)[
+                        as_vector< int >()
+                            [ ENDSCALE::symdir >> -ENDSCALE::symrev >> -+qi::int_]
+                        ]
                     )
                 ;
     }
