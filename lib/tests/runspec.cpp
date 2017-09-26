@@ -82,7 +82,7 @@ DIMENS
                                    std::begin( exp ), std::end( exp ) );
 }
 
-BOOST_AUTO_TEST_CASE( swatinit ) {
+BOOST_AUTO_TEST_CASE( repeated_value ) {
     const std::string input = R"(
 RUNSPEC
 
@@ -96,6 +96,17 @@ EQLDIMS
 
     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
                                    tgt.begin(), tgt.end() );
+}
+
+BOOST_AUTO_TEST_CASE( too_many_items_fails ) {
+    const std::string input = R"(
+RUNSPEC
+
+EQLDIMS
+    10*5 /
+)";
+    auto sec = parse( input.begin(), input.end() );
+    BOOST_CHECK_THROW( at( sec, "EQLDIMS" ).at( 0 ), std::out_of_range );
 }
 
 BOOST_AUTO_TEST_CASE( repeat_int ) {

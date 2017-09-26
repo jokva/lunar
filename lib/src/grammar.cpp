@@ -69,6 +69,10 @@ qi::rule< Itr, std::vector< T >(), skipper< Itr > > item =
     )
 ;
 
+template< typename Itr, typename T >
+qi::rule< Itr, std::vector< T >( int ), skipper< Itr > > bounded =
+    item< Itr, T >[qi::_pass = phx::size( qi::_1 ) < qi::_r1, qi::_val = qi::_1]
+;
 
 /*
  * spell out all accepted up/lowcase variations of yes/no, to avoid introducing
@@ -124,9 +128,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                 >> *(
                       kword(fix13) >> qi::repeat(1)[ item< Itr, int > ]
                     | kword(toggles) >> qi::attr( empty_records )
-                    | qi::string("EQLDIMS") >> qi::repeat(1)[ item< Itr, int > ]
-                    | qi::string("GRIDOPTS")
-                        >> qi::repeat(1)[
+                    | qi::string("EQLDIMS") >> qi::repeat(1)[bounded< Itr, int >( 5 )]
+                    | qi::string("GRIDOPTS") >> qi::repeat(1)[
                         as_vector< int >()[yesno >> *qi::int_ ]]
                     )
                 ;
