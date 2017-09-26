@@ -105,7 +105,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
         toggles  = "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
-        fix13 = "DIMENS", "EQLDIMS";
+        fix13 = "DIMENS";
 
         simple %= qi::eps > qi::repeat(qi::_r1)[
                     as_vector< int >()[qi::repeat(qi::_r2)[ qi::int_ ]]
@@ -124,7 +124,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
                 >> *(
                       kword(fix13) >> qi::repeat(1)[ item< Itr, int > ]
                     | kword(toggles) >> qi::attr( empty_records )
-                    | qi::string("SWATINIT") >> qi::repeat(1)[ item< Itr, double > ]
+                    | qi::string("EQLDIMS") >> qi::repeat(1)[ item< Itr, int > ]
                     | qi::string("GRIDOPTS")
                         >> qi::repeat(1)[
                         as_vector< int >()[yesno >> *qi::int_ ]]

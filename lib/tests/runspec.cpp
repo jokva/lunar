@@ -86,15 +86,14 @@ BOOST_AUTO_TEST_CASE( swatinit ) {
     const std::string input = R"(
 RUNSPEC
 
-SWATINIT
-    10*0.25 /
+EQLDIMS
+    3*5 /
 )";
     auto sec = parse( input.begin(), input.end() );
-    const auto& kw = at( sec, "SWATINIT" ).at( 0 );
-    std::vector< double > tgt( 10, 0.25 );
-    auto& vals = boost::get< const std::vector< double > >( kw.at( 0 ) );
+    const auto& kw = at( sec, "EQLDIMS" ).at( 0 );
+    std::vector< double > tgt( 3 , 5 );
+    auto& vals = boost::get< const std::vector< int > >( kw.at( 0 ) );
 
-    BOOST_CHECK_EQUAL( 10, vals.size() );
     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
                                    tgt.begin(), tgt.end() );
 }
