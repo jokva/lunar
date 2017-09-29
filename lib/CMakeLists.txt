@@ -8,9 +8,6 @@ target_include_directories(lunar-grammar PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-add_executable(lunar src/main.cpp)
-target_link_libraries(lunar lunar-grammar)
-
 add_executable(runspec-tests tests/runspec.cpp)
 target_link_libraries(runspec-tests Boost::unit_test_framework lunar-grammar)
 target_compile_definitions(runspec-tests PUBLIC -DBOOST_TEST_DYN_LINK)

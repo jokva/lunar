@@ -1,35 +1,19 @@
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <streambuf>
 #include <string>
 
 #include <lunar/parser.hpp>
 
-namespace std {
+std::string dot( const section& sec ) {
+    std::stringstream stream;
 
-template< typename T >
-std::ostream& operator<<( std::ostream& stream, const std::vector< T >& xs ) {
-    for( auto x : xs ) stream << x << " ";
-    return stream;
-}
-
-}
-
-std::ostream& operator<<( std::ostream& stream, const record& r ) {
-    stream << "record { ";
-    for( auto& x : r ) stream << "item ( " << x << " ) ";
-    return stream << "}";
-}
-
-std::ostream& operator<<( std::ostream& stream, const keyword& kw ) {
-    return stream << kw.name << "\t[ " << kw.xs << "]";
-}
-
-std::ostream& operator<<(std::ostream& stream, const section& r ) {
-    stream << r.name << ":\n";
-    for( const auto& x : r.xs )
-        stream << x << "\n";
-    return stream;
+    stream << sec.name << " -> ";
+    stream << "{";
+    for( const auto& kw : sec.xs )
+        stream << kw.name << " ";
+    stream << "}" << std::endl;
 }
 
 int main( int argc, char** argv ) {
@@ -42,5 +26,5 @@ int main( int argc, char** argv ) {
     auto end   = input.cend();
     auto sec = parse( begin, end );
 
-    std::cout << sec << std::endl;
+    std::cout << dot( sec ) << std::endl;
 }

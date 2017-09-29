@@ -6,8 +6,6 @@
 
 #include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/repository/include/qi_kwd.hpp>
-
 
 #include <lunar/parser.hpp>
 
@@ -15,9 +13,12 @@ namespace spirit    = boost::spirit;
 namespace phx       = boost::phoenix;
 namespace qi        = boost::spirit::qi;
 namespace ascii     = boost::spirit::ascii;
+namespace bf        = boost::fusion;
 
 BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
+BOOST_FUSION_ADAPT_STRUCT( item, repeat, ival, fval, sval )
+BOOST_FUSION_ADAPT_STRUCT( item::star, val )
 
 namespace {
 
@@ -25,80 +26,125 @@ template< typename Itr >
 struct skipper : public qi::grammar< Itr > {
     skipper() : skipper::base_type( skip ) {
         skip = ascii::space
-             | (qi::lit("--") | '/') >> *(qi::char_ - qi::eol) >> qi::eol
-             ;
+             | "--" >> *(qi::char_ - qi::eol)
+        ;
     };
 
     qi::rule< Itr > skip;
 };
 
-template< typename... T >
-using as_vector = qi::as< std::vector< T... > >;
+template< typename Itr >
+qi::rule< Itr, item::star() > star = qi::int_ >> '*';
 
 static const auto empty_records = std::vector< record > {};
 
+/*
+ * keyword lookup through a qi::symbol table is pretty convenient, but that
+ * only selects rule, it doesn't preserve the string. This nifty macro makes
+ * will ensure the found keyword is synthesized properly. It also ensures that
+ * a keyword is only a match if it matches the *complete* input, i.e. stops the
+ * 'SYM' keyword would otherwise match the string 'SYMBOLS'
+ */
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
-namespace bf = boost::fusion;
-
-/*
- * compile-time map some data type to its parser, in order to allow rules to be
- * parametrised over expected return type. Instead of having two rules,
- * int_item and double_item, a template rule item< int|double > can be used
- * instead.
- *
- * Instantiating the value parser in a rule is somewhat tricky:
- *      typename num< T >::p()
- */
-template< typename T > struct num;
-template<> struct num< int >    { using p = decltype( qi::int_ ); };
-template<> struct num< double > { using p = decltype( qi::double_ ); };
-
-/*
- * The basic rule for parsing a non-defaultable item entry, i.e. a list of a
- * single data type, possibly with repetition, into a vector.
- */
-template< typename Itr, typename T >
-qi::rule< Itr, std::vector< T >(), skipper< Itr > > item =
-    +( +qi::lexeme[typename num< T >::p() >> !qi::lit('*')]
-      | qi::omit[qi::lexeme[qi::int_ >> '*' >> typename num< T >::p()][
-            phx::insert( qi::_val, phx::end(qi::_val),
-                                   phx::at_c< 0 >(qi::_1),
-                                   phx::at_c< 1 >(qi::_1) )
-                ]] >> qi::attr( qi::_val )
-    )
+template< typename Itr >
+qi::rule< Itr, std::string() > str =
+      '\'' >> *(qi::char_ - '\'') >> '\''
+    | '"'  >> *(qi::char_ - '"')  >> '"'
+    | qi::alpha >> *qi::alnum
 ;
 
-template< typename Itr, typename T >
-qi::rule< Itr, std::vector< T >( int ), skipper< Itr > > bounded =
-    item< Itr, T >[qi::_pass = phx::size( qi::_1 ) < qi::_r1, qi::_val = qi::_1]
-;
-
-/*
- * spell out all accepted up/lowcase variations of yes/no, to avoid introducing
- * a new rule just for no-casing
- */
-struct yesnoc : public qi::symbols< char, int > {
-    yesnoc() {
-        add ("'yes'",   1)
-            ( "yes",    1)
-            ("'y'",     1)
-            ( "y",      1)
-            ("'YES'",   1)
-            ( "YES",    1)
-            ("'Y'",     1)
-            ( "Y",      1)
-            ("'no'",    0)
-            ( "no",     0)
-            ("'n'",     0)
-            ( "n",      0)
-            ("'NO'",    0)
-            ( "NO",     0)
-            ("'N'",     0)
-            ( "N",      0)
-            ;
+template< typename T >
+struct fortran_double : qi::real_policies< T > {
+    // Eclipse supports Fortran syntax for specifying exponents of floating
+    // point numbers ('D' and 'E', e.g., 1.234d5)
+    template< typename It >
+    static bool parse_exp( It& first, const It& last ) {
+        if( first == last ||
+            (*first != 'e' && *first != 'E' &&
+            *first != 'd' && *first != 'D' ) )
+            return false;
+        ++first;
+        return true;
     }
-} yesno;
+};
+
+qi::real_parser< double, fortran_double< double > > f77float;
+
+/* a typical deck contains a LOT more int-values than doubles, which means that
+ * by checking for doubles first, we must essentially always backtrack, which
+ * is somewhat expensive.
+ *
+ * TODO: figure out rule that allows valid ints to parse first that isn't
+ * horribly complicated or expensive
+ */
+
+#define primary() (qi::int_ >> !qi::char_(".eEdD") | f77float)
+#define term()    (qi::lit('/') >> qi::skip(qi::char_ - qi::eol)[qi::eps])
+
+/*
+ * The basic rule for parsing 1 record (aka list of items), including repeats
+ *
+ * The rule itself is variadically parametrised on a set of types, which allows
+ * rules to share the same basic name, but restrict what types they accept.
+ *
+ * the rule <int> will only accept integers and defaults, and fail on doubles
+ * and strings, and similarly for <double> and <string>. <int, double> will
+ * fail encountering strings, but work for int and doubles. This is because a
+ * lot of keywords accept only the one data type, and can report that error
+ * early, where some keywords accept mixed int/double/string and will usually
+ * be deferred to handle input errors at a later stage.
+ *
+ * It's motivated primarily by:
+ * - most rules don't accept strings (and a lot don't accept doubles), so
+ *   performance should improve slightly by having to consider less
+ *   combinations (-> backtracking)
+ * - we can report some type errors earlier
+ * - the rule inputs become somewhat clearer
+ */
+template< typename Itr, typename... >
+qi::rule< Itr, item() > itemrule;
+
+/*
+ * TODO: optimise backtracking patterns
+ */
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, int > =
+      qi::int_ >> !qi::lit('*')
+    | star< Itr > >> qi::int_
+;
+
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, double > =
+      f77float >> !qi::lit('*')
+    | star< Itr > >> qi::attr( 0 ) >> f77float
+;
+
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, int, double > =
+      primary() >> !qi::lit('*')
+    | star< Itr > >> primary()
+;
+
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, std::string > =
+      str< Itr >[qi::_val = qi::_1]
+    | star< Itr > >> str< Itr >[qi::_val = qi::_1]
+;
+
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, int, std::string > =
+      itemrule< Itr, int >
+    | itemrule< Itr, std::string >
+;
+
+template< typename Itr, typename... T >
+qi::rule< Itr, record(), skipper< Itr > > rec =
+    *( itemrule< Itr, T... >
+     | star< Itr >
+     | '*'
+     )
+    >> term();
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
@@ -107,40 +153,62 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
     grammar() : grammar::base_type( start ) {
 
-        toggles  = "OIL", "WATER", "DISGAS", "VAPOIL";
+        toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
-        fix13 = "DIMENS";
+        singlei += "DIMENS", "EQLDIMS";
+        singlef += "MAPAXES";
 
-        simple %= qi::eps > qi::repeat(qi::_r1)[
-                    as_vector< int >()[qi::repeat(qi::_r2)[ qi::int_ ]]
-                ];
+        start %= qi::string("RUNSPEC") >> *(
+            kword(singlei) >> qi::repeat(1)[ rec< Itr, int > ]
+          | kword(singlef) >> qi::repeat(1)[ rec< Itr, double > ]
+          | kword(toggles) >> qi::attr( empty_records )
+          | qi::string("GRIDOPTS") >>
+                qi::repeat(1)[ rec< Itr, int, std::string > ]
+        )
+        ;
 
-        qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
-                << "error: expected ["
-                << qi::_r1 << ", " << qi::_r2
-                << "] at:"
-                << std::endl
-                << phx::construct< std::string >( qi::_3, qi::_2 )
-                << std::endl
-        );
-
-        start %= qi::string("RUNSPEC")
-                >> *(
-                      kword(fix13) >> qi::repeat(1)[ item< Itr, int > ]
-                    | kword(toggles) >> qi::attr( empty_records )
-                    | qi::string("EQLDIMS") >> qi::repeat(1)[bounded< Itr, int >( 5 )]
-                    | qi::string("GRIDOPTS") >> qi::repeat(1)[
-                        as_vector< int >()[yesno >> *qi::int_ ]]
-                    )
-                ;
+        start.name( "start" );
+        itemrule< Itr >.name( "item" );
+        itemrule< Itr, int >.name( "item[int]" );
+        itemrule< Itr, double >.name( "item[flt]" );
+        itemrule< Itr, int, double >.name( "item[int|flt]" );
+        itemrule< Itr, std::string >.name( "item[str]" );
+        itemrule< Itr, int, std::string >.name( "item[int|str]" );
     }
 
+    qi::symbols<> singlei;
+    qi::symbols<> singlef;
     qi::symbols<> toggles;
-    qi::symbols<> fix13;
-    rule< std::vector< record >(int, int) > simple;
     rule< section() > start;
 };
 
+}
+
+std::ostream& operator<<( std::ostream& stream, const item::tag& x ) {
+    switch( x ) {
+        case item::tag::i:   return stream << "int";
+        case item::tag::f:   return stream << "float";
+        case item::tag::str: return stream << "str";
+        default:             return stream << "none";
+    }
+}
+
+std::ostream& operator<<( std::ostream& stream, const item::star& s ) {
+    return stream << int(s) << "*";
+}
+
+std::ostream& operator<<( std::ostream& stream, const item& x ) {
+    stream << "{" << x.type << "|";
+    if( x.repeat > 1 ) stream << x.repeat;
+
+    switch( x.type ) {
+        case item::tag::i:   stream << x.ival; break;
+        case item::tag::f:   stream << x.fval; break;
+        case item::tag::str: stream << x.sval; break;
+        default:             stream << "_";
+    }
+
+    return stream << "}";
 }
 
 section parse( std::string::const_iterator fst,
