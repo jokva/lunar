@@ -6,6 +6,7 @@
 
 #include <boost/fusion/adapted/adt/adapt_adt.hpp>
 #include <boost/fusion/include/adapt_adt.hpp>
+#include <boost/spirit/include/support_adapt_adt_attributes.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/repository/include/qi_kwd.hpp>
@@ -21,11 +22,10 @@ namespace bf        = boost::fusion;
 BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
 BOOST_FUSION_ADAPT_ADT( item,
-        (obj.getint(),    obj.set(val))
-        (obj.getdouble(), obj.set(val))
-        (obj.getstring(), obj.set(val))
-        (obj.getstar(),   obj.set(val))
-        (obj.gettag(),    obj.set(val))
+        (obj.ival,      obj.set(val))
+        (obj.fval,      obj.set(val))
+        (obj.sval,      obj.set(val))
+        (obj.repeat,    obj.set(val))
 )
 
 namespace {
@@ -34,8 +34,8 @@ template< typename Itr >
 struct skipper : public qi::grammar< Itr > {
     skipper() : skipper::base_type( skip ) {
         skip = ascii::space
-             | (qi::lit("--")) >> *(qi::char_ - qi::eol) >> qi::eol
-             ;
+             | "--" >> *(qi::char_ - qi::eol)
+        ;
     };
 
     qi::rule< Itr > skip;
@@ -64,6 +64,7 @@ qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
  */
 
 #define primary() (qi::lexeme[qi::int_ >> !qi::char_(".eEdD")] | qi::double_)
+#define term()    ('/' >> qi::skip(qi::char_ - qi::eol)[qi::eps])
 
 /*
  * TODO: optimise backtracking patterns
@@ -78,38 +79,6 @@ qi::rule< Itr, item(), skipper< Itr > > itemrule = (
     )
 ;
 
-
-//template< typename Itr, typename T >
-//qi::rule< Itr, std::vector< T >( int ), skipper< Itr > > bounded =
-//    item< Itr, T >[qi::_pass = phx::size( qi::_1 ) < qi::_r1, qi::_val = qi::_1]
-//;
-
-/*
- * spell out all accepted up/lowcase variations of yes/no, to avoid introducing
- * a new rule just for no-casing
- */
-struct yesnoc : public qi::symbols< char, int > {
-    yesnoc() {
-        add ("'yes'",   1)
-            ( "yes",    1)
-            ("'y'",     1)
-            ( "y",      1)
-            ("'YES'",   1)
-            ( "YES",    1)
-            ("'Y'",     1)
-            ( "Y",      1)
-            ("'no'",    0)
-            ( "no",     0)
-            ("'n'",     0)
-            ( "n",      0)
-            ("'NO'",    0)
-            ( "NO",     0)
-            ("'N'",     0)
-            ( "N",      0)
-            ;
-    }
-} yesno;
-
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
@@ -117,37 +86,22 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
     grammar() : grammar::base_type( start ) {
 
-        syms =  "OIL", "WATER", "DISGAS", "VAPOIL";
-        syms += "METRIC", "FIELD", "LAB", "NOSIM";
+        toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
+        toggles += "METRIC", "FIELD", "LAB", "NOSIM";
         syms += "DIMENS";
 
-        start %= qi::string("RUNSPEC")
-            >> *( kword(syms) >> qi::repeat(1)[ *itemrule< Itr > >> qi::eol ] )
+        start %= qi::string("RUNSPEC") >> *(
+            kword(syms) >> qi::repeat(1)[ *itemrule< Itr > >> term() ]
+          | kword(toggles) >> qi::attr( empty_records )
+        )
         ;
 
-    //    qi::on_error< qi::fail >( simple, std::cerr << phx::val("")
-    //            << "error: expected ["
-    //            << qi::_r1 << ", " << qi::_r2
-    //            << "] at:"
-    //            << std::endl
-    //            << phx::construct< std::string >( qi::_3, qi::_2 )
-    //            << std::endl
-    //    );
-
-    //    start %= qi::string("RUNSPEC")
-    //            >> *(
-    //                  kword(fix13) >> qi::repeat(1)[ item< Itr, int > ]
-    //                | kword(toggles) >> qi::attr( empty_records )
-    //                | qi::string("EQLDIMS") >> qi::repeat(1)[bounded< Itr, int >( 5 )]
-    //                | qi::string("GRIDOPTS") >> qi::repeat(1)[
-    //                    as_vector< int >()[yesno >> *qi::int_ ]]
-    //                )
-    //            ;
         start.name( "start" );
         itemrule< Itr >.name( "item" );
     }
 
     qi::symbols<> syms;
+    qi::symbols<> toggles;
     rule< section() > start;
 };
 

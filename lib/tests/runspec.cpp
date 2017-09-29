@@ -14,6 +14,25 @@ bool operator==( const keyword& kw, const std::string& key ) {
         return key == kw;
 }
 
+bool operator==( const item& x, int i ) {
+    return x.type == item::tag::i && x.ival == i;
+}
+
+bool operator==( const item& x, double f ) {
+    return x.type == item::tag::f && x.fval == f;
+}
+
+bool operator==( const item& x, const std::string& str ) {
+    return x.type == item::tag::str && x.sval == str;
+}
+
+template< typename T >
+bool operator==( const T& lhs, const item& rhs ) { return rhs == lhs; }
+template< typename T >
+bool operator!=( const T& lhs, const item& rhs ) { return !(rhs == lhs); }
+template< typename T >
+bool operator!=( const item& lhs, const T& rhs ) { return !(lhs == rhs); }
+
 const std::vector< record >& at( const section& sec, const std::string& key ) {
     auto itr = std::find( sec.xs.begin(), sec.xs.end(), key );
     if( itr == sec.xs.end() ) throw std::out_of_range("No such key: " + key );
@@ -26,12 +45,12 @@ bool has_keyword( const std::vector< keyword >& xs, const std::string& key ) {
 }
 
 
-BOOST_AUTO_TEST_CASE(text_after_slash) {
+BOOST_AUTO_TEST_CASE( text_after_slash ) {
     const std::string input = R"(
 RUNSPEC
 
 DIMENS
-10 20 30 / text-after-slash
+    10 20 30 / text-after-slash
 
 OIL
 )";
@@ -47,7 +66,7 @@ OIL
 
 }
 
-BOOST_AUTO_TEST_CASE(toggles) {
+BOOST_AUTO_TEST_CASE( toggles ) {
     const std::string input = R"(
 RUNSPEC
 
@@ -60,22 +79,24 @@ OIL
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
 }
 
-BOOST_AUTO_TEST_CASE(fixed_record_size) {
+BOOST_AUTO_TEST_CASE( fixed_record_size ) {
     const std::string input = R"(
 RUNSPEC
 
 OIL -- toggle keyword to make the deck less trivial
 
 DIMENS
-10 20 30 /
+    10 20 30 /
 
 )";
     auto sec = parse( input.begin(), input.end() );
     const auto& dimens = at( sec, "DIMENS" ).at( 0 );
+    std::cout << " ==== " << std::endl;
+    for( const auto& x : dimens ) std::cout << x  << std::endl;
+    std::cout << " ==== " << std::endl;
     int exp[] = { 10, 20, 30 };
-    int val[] = { dimens.at(0).ival, dimens.at(1).ival, dimens.at(2).ival };
 
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( val), std::end( val ),
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( dimens ), std::end( dimens ),
                                    std::begin( exp ), std::end( exp ) );
 }
 

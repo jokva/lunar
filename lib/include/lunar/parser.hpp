@@ -8,7 +8,7 @@
 struct star {
     star() = default;
     star( int x ) : val( x ) {}
-    operator int() { return this->val; }
+    //operator int() { return this->val; }
     int val = 1;
 };
 
@@ -27,7 +27,7 @@ struct item {
         repeat( star ),
         sval( std::move( x ) ) {}
 
-    item( int, star x ) : type( tag::none ), repeat( x ) {}
+    item( int, star x ) : type( tag::none ), repeat( x.val ) {}
     item( int star, tag ) : type( tag::none ), repeat( star ) {}
     static item defaulted( int star = 1 ) { return item( star, tag::none ); }
 

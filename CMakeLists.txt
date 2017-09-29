@@ -7,3 +7,4 @@ find_package(Boost REQUIRED unit_test_framework)
 
 set(CMAKE_CXX_STANDARD 14)
 add_subdirectory(lib)
+add_subdirectory(bin)
