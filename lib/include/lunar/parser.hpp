@@ -27,7 +27,7 @@ struct item {
         sval( std::move( x ) ) {}
 
     item( star s ) : type( tag::none ), repeat( s ) {}
-    static item defaulted( int star = 1 ) { return item( star ); };
+    static item defaulted( int repeat = 1 ) { return item( star { repeat } ); };
 
     template< typename T >
     item( T x ) : item( star{ 1 }, std::forward< T >( x ) ) {}

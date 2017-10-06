@@ -40,6 +40,8 @@ struct skipper : public qi::grammar< Itr > {
 template< typename... T >
 using as_vector = qi::as< std::vector< T... > >;
 
+using as_star = qi::as< item::star >;
+
 static const auto empty_records = std::vector< record > {};
 
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
@@ -63,21 +65,52 @@ qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
 #define term()    (qi::lit('/') >> qi::skip(qi::char_ - qi::eol)[qi::eps])
 
 /*
+ * The basic rule for parsing 1 record (aka list of items), including repeats
+ *
+ * The rule itself is variadically parametrised on a set of types, which allows
+ * rules to share the same basic name, but restrict what types they accept.
+ *
+ * the rule <int> will only accept integers and defaults, and fail on doubles
+ * and strings, and similarly for <double> and <string>. <int, double> will
+ * fail encountering strings, but work for int and doubles. This is because a
+ * lot of keywords accept only the one data type, and can report that error
+ * early, where some keywords accept mixed int/double/string and will usually
+ * be deferred to handle input errors at a later stage.
+ */
+template< typename Itr, typename... >
+qi::rule< Itr, item(), skipper< Itr > > itemrule;
+
+/*
  * TODO: optimise backtracking patterns
  */
 template< typename Itr >
-qi::rule< Itr, item(), skipper< Itr > > itemrule = (
-      qi::lexeme[primary() >> !qi::lit('*')]
-    | qi::lexeme[qi::as< item::star >()[qi::int_] >> '*'  >> primary()]
-    | qi::lexeme[qi::as< item::star >()[qi::int_] >> '*']
-    | '*'
-    | quoted_string< Itr >
-    )
+qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, int > =
+      qi::lexeme[qi::int_ >> !qi::lit('*')]
+    | qi::lexeme[as_star()[qi::int_] >> '*'  >> qi::int_]
 ;
 
 template< typename Itr >
+qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, double > =
+      qi::lexeme[qi::double_ >> !qi::lit('*')]
+    | qi::lexeme[as_star()[qi::int_] >> '*'  >> qi::double_]
+;
+
+template< typename Itr >
+qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, int, double > =
+      qi::lexeme[primary() >> !qi::lit('*')]
+    | qi::lexeme[as_star()[qi::int_] >> '*'  >> primary()]
+;
+
+template< typename Itr >
+qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, std::string > =
+      qi::lexeme[quoted_string< Itr > >> !qi::lit('*')]
+    | qi::lexeme[as_star()[qi::int_] >> '*' >> quoted_string< Itr >]
+;
+
+template< typename Itr, typename... T >
 qi::rule< Itr, record(), skipper< Itr > > rec =
-    *itemrule< Itr > >> term();
+       *(itemrule< Itr, T... > | qi::lexeme[as_star()[qi::int_] >> '*'] | '*')
+    >> term();
 
 template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
@@ -88,10 +121,12 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
         toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
-        syms += "DIMENS", "EQLDIMS";
+        singlei += "DIMENS", "EQLDIMS";
+        singlef += "SWATINIT";
 
         start %= qi::string("RUNSPEC") >> *(
-            kword(syms) >> qi::repeat(1)[ rec< Itr > ]
+            kword(singlei) >> qi::repeat(1)[ rec< Itr, int > ]
+          | kword(singlef) >> qi::repeat(1)[ rec< Itr, double > ]
           | kword(toggles) >> qi::attr( empty_records )
         )
         ;
@@ -100,7 +135,8 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         itemrule< Itr >.name( "item" );
     }
 
-    qi::symbols<> syms;
+    qi::symbols<> singlei;
+    qi::symbols<> singlef;
     qi::symbols<> toggles;
     rule< section() > start;
 };
@@ -122,8 +158,7 @@ std::ostream& operator<<( std::ostream& stream, const item::star& s ) {
 
 std::ostream& operator<<( std::ostream& stream, const item& x ) {
     stream << "{" << x.type << "|";
-    if( x.repeat > 1 )
-        stream << x.repeat << "*";
+    if( x.repeat > 1 ) stream << x.repeat;
 
     switch( x.type ) {
         case item::tag::i:   stream << x.ival; break;
