@@ -47,11 +47,13 @@ static const auto empty_records = std::vector< record > {};
 #define kword(sym) qi::raw[qi::lexeme[(sym) >> !qi::alnum]]
 
 template< typename Itr >
-qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
+qi::rule< Itr, std::string(), skipper< Itr > > str =
       qi::lexeme[ '\'' >> *(qi::char_ - '\'') >> '\'' ]
     | qi::lexeme[ '"'  >> *(qi::char_ - '"')  >> '"'  ]
     | qi::lexeme[ qi::char_("a-zA-Z") >> *qi::alnum ]
 ;
+
+#define STR      qi::as_string[(qi::lexeme[ '\'' >> *(qi::char_ - '\'') >> '\'' ] | qi::lexeme[ '"'  >> *(qi::char_ - '"')  >> '"'  ] | qi::lexeme[ qi::char_("a-zA-Z") >> *qi::alnum ])]
 
 /* a typical deck contains a LOT more int-values than doubles, which means that
  * by checking for doubles first, we must essentially always backtrack, which
@@ -76,6 +78,13 @@ qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
  * lot of keywords accept only the one data type, and can report that error
  * early, where some keywords accept mixed int/double/string and will usually
  * be deferred to handle input errors at a later stage.
+ *
+ * It's motivated primarily by:
+ * - most rules don't accept strings (and a lot don't accept doubles), so
+ *   performance should improve slightly by having to consider less
+ *   combinations (-> backtracking)
+ * - we can report some type errors earlier
+ * - the rule inputs become somewhat clearer
  */
 template< typename Itr, typename... >
 qi::rule< Itr, item(), skipper< Itr > > itemrule;
@@ -103,13 +112,34 @@ qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, int, double > =
 
 template< typename Itr >
 qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, std::string > =
-      qi::lexeme[quoted_string< Itr > >> !qi::lit('*')]
-    | qi::lexeme[as_star()[qi::int_] >> '*' >> quoted_string< Itr >]
+      qi::lexeme[str< Itr > >> !qi::lit('*')]
+    | qi::lexeme[as_star()[qi::int_] >> '*' >> str< Itr >]
+;
+
+namespace set {
+    auto ival = phx::bind(&item::ival,   qi::_val);
+    auto sval = phx::bind(&item::sval,   qi::_val);
+    auto star = phx::bind(&item::repeat, qi::_val);
+}
+
+template< typename Itr >
+qi::rule< Itr, item(), skipper< Itr > > itemrule< Itr, int, std::string > =
+      qi::lexeme[qi::int_   >> !qi::lit('*')][set::ival = qi::_1]
+    | qi::lexeme[str< Itr > >> !qi::lit('*')][set::sval = qi::_1]
+    | qi::lexeme[as_star()[qi::int_] >> '*'  >> qi::int_]
+        [set::star = phx::at_c< 0 >(qi::_1),
+         set::ival = phx::at_c< 1 >(qi::_1)]
+    | qi::lexeme[as_star()[qi::int_] >> '*'  >> str< Itr >]
+        [set::star = phx::at_c< 0 >(qi::_1),
+         set::sval = phx::at_c< 1 >(qi::_1)]
 ;
 
 template< typename Itr, typename... T >
 qi::rule< Itr, record(), skipper< Itr > > rec =
-       *(itemrule< Itr, T... > | qi::lexeme[as_star()[qi::int_] >> '*'] | '*')
+       *( itemrule< Itr, T... >
+        | qi::lexeme[as_star()[qi::int_] >> '*']
+        | '*'
+        )
     >> term();
 
 template< typename Itr >
@@ -122,12 +152,12 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
         singlei += "DIMENS", "EQLDIMS";
-        singlef += "SWATINIT";
 
         start %= qi::string("RUNSPEC") >> *(
             kword(singlei) >> qi::repeat(1)[ rec< Itr, int > ]
           | kword(singlef) >> qi::repeat(1)[ rec< Itr, double > ]
           | kword(toggles) >> qi::attr( empty_records )
+          | qi::string("GRIDOPTS") >> qi::repeat(1)[ rec< Itr, int, std::string > ]
         )
         ;
 
