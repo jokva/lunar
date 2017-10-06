@@ -22,13 +22,7 @@ namespace bf        = boost::fusion;
 BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( item, repeat, ival, fval, sval )
-BOOST_FUSION_ADAPT_STRUCT( star, val )
-//BOOST_FUSION_ADAPT_ADT( item,
-//        (obj.ival,      obj.set(val))
-//        (obj.fval,      obj.set(val))
-//        (obj.sval,      obj.set(val))
-//        (obj.repeat,    obj.set(val))
-//)
+BOOST_FUSION_ADAPT_STRUCT( item::star, val )
 
 namespace {
 
@@ -74,8 +68,8 @@ qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
 template< typename Itr >
 qi::rule< Itr, item(), skipper< Itr > > itemrule = (
       qi::lexeme[primary() >> !qi::lit('*')]
-    | qi::lexeme[qi::as< star >()[qi::int_] >> '*'  >> primary()]
-    | qi::lexeme[qi::as< star >()[qi::int_] >> '*']
+    | qi::lexeme[qi::as< item::star >()[qi::int_] >> '*'  >> primary()]
+    | qi::lexeme[qi::as< item::star >()[qi::int_] >> '*']
     | '*'
     | quoted_string< Itr >
     )
@@ -97,7 +91,6 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         syms += "DIMENS", "EQLDIMS";
 
         start %= qi::string("RUNSPEC") >> *(
-            //kword(syms) >> qi::repeat(1)[ (*itemrule< Itr >) > term()]
             kword(syms) >> qi::repeat(1)[ rec< Itr > ]
           | kword(toggles) >> qi::attr( empty_records )
         )
@@ -123,7 +116,7 @@ std::ostream& operator<<( std::ostream& stream, const item::tag& x ) {
     }
 }
 
-std::ostream& operator<<( std::ostream& stream, const star& s ) {
+std::ostream& operator<<( std::ostream& stream, const item::star& s ) {
     return stream << int(s) << "*";
 }
 

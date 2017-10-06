@@ -5,15 +5,14 @@
 #include <string>
 #include <vector>
 
-struct star {
-    star() = default;
-    star( int x ) : val( x ) {}
-    operator int() const { return this->val; }
-    int val = 1;
-};
-
 struct item {
     enum class tag { i, f, str, none };
+    struct star {
+        star() = default;
+        star( int x ) : val( x ) {}
+        operator int() const { return this->val; }
+        int val = 1;
+    };
 
     tag type = tag::none;
     star repeat = 1;
@@ -30,37 +29,6 @@ struct item {
     item( int, star x ) : type( tag::none ), repeat( x.val ) {}
     item( int star, tag ) : type( tag::none ), repeat( star ) {}
     static item defaulted( int star = 1 ) { return item( star, tag::none ); }
-
-    int getint() const { return this->ival; }
-    double getdouble() const { return this->fval; }
-    std::string getstring() const { return this->sval; }
-    star getstar() const { return this->repeat; }
-    tag gettag() const { return this->type; }
-
-    item& set( int x ) {
-        this->ival = x;
-        this->type = tag::i;
-        return *this;
-    }
-
-    item& set( double x ) {
-        this->fval = x;
-        this->type = tag::f;
-        return *this;
-    }
-
-    item& set( std::string x ) {
-        this->sval = std::move( x );
-        this->type = tag::str;
-        return *this;
-    }
-
-    item& set( star x ) {
-        this->repeat = x.val;
-        return *this;
-    }
-
-    item& set( tag ) { this->type = tag::none; return *this; }
 
     template< typename T >
     item( T x ) : item( 1, std::forward< T >( x ) ) {}
@@ -87,7 +55,7 @@ section parse( std::string::const_iterator fst,
 
 std::string dot( const section& );
 
-std::ostream& operator<<( std::ostream&, const star& );
+std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::tag& );
 std::ostream& operator<<( std::ostream&, const item& );
 
