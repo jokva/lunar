@@ -79,7 +79,7 @@ OIL
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
 }
 
-BOOST_AUTO_TEST_CASE( fixed_record_size ) {
+BOOST_AUTO_TEST_CASE( record_all_int ) {
     const std::string input = R"(
 RUNSPEC
 
@@ -88,75 +88,57 @@ OIL -- toggle keyword to make the deck less trivial
 DIMENS
     10 20 30 /
 
+WATER
 )";
     auto sec = parse( input.begin(), input.end() );
     const auto& dimens = at( sec, "DIMENS" ).at( 0 );
-    std::cout << " ==== " << std::endl;
-    for( const auto& x : dimens ) std::cout << x  << std::endl;
-    std::cout << " ==== " << std::endl;
     int exp[] = { 10, 20, 30 };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( dimens ), std::end( dimens ),
                                    std::begin( exp ), std::end( exp ) );
 }
 
-// BOOST_AUTO_TEST_CASE( repeated_value ) {
-//     const std::string input = R"(
-// RUNSPEC
-//
-// EQLDIMS
-//     3*5 /
-// )";
-//     auto sec = parse( input.begin(), input.end() );
-//     const auto& kw = at( sec, "EQLDIMS" ).at( 0 );
-//     std::vector< double > tgt( 3 , 5 );
-//     auto& vals = boost::get< const std::vector< int > >( kw.at( 0 ) );
-//
-//     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
-//                                    tgt.begin(), tgt.end() );
-// }
-//
-// BOOST_AUTO_TEST_CASE( too_many_items_fails ) {
-//     const std::string input = R"(
-// RUNSPEC
-//
-// EQLDIMS
-//     10*5 /
-// )";
-//     auto sec = parse( input.begin(), input.end() );
-//     BOOST_CHECK_THROW( at( sec, "EQLDIMS" ).at( 0 ), std::out_of_range );
-// }
-//
-// BOOST_AUTO_TEST_CASE( repeat_int ) {
-//     const std::string input = R"(
-// RUNSPEC
-//
-// DIMENS
-//     3*10 /
-// )";
-//     auto sec = parse( input.begin(), input.end() );
-//     const auto& dimens = at( sec, "DIMENS" ).at( 0 );
-//     std::vector< int > tgt( 3, 10 );
-//     auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
-//     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
-//                                    tgt.begin(), tgt.end() );
-// }
-//
-// BOOST_AUTO_TEST_CASE( repeat_int_mixed ) {
-//     const std::string input = R"(
-// RUNSPEC
-//
-// DIMENS
-//     5 2*10 /
-// )";
-//     auto sec = parse( input.begin(), input.end() );
-//     const auto& dimens = at( sec, "DIMENS" ).at( 0 );
-//     std::vector< int > tgt = { 5, 10, 10 };
-//     auto& vals = boost::get< std::vector< int > >( dimens.at( 0 ) );
-//     BOOST_CHECK_EQUAL_COLLECTIONS( vals.begin(), vals.end(),
-//                                    tgt.begin(), tgt.end() );
-// }
-//
+BOOST_AUTO_TEST_CASE( repeated_value ) {
+    const std::string input = R"(
+RUNSPEC
+
+EQLDIMS
+    3*5 /
+)";
+    auto sec = parse( input.begin(), input.end() );
+    const auto& kw = at( sec, "EQLDIMS" ).at( 0 );
+
+    BOOST_CHECK_EQUAL( 1U, kw.size() );
+
+    const auto& x = kw.at( 0 );
+    BOOST_CHECK_EQUAL( 3, x.repeat );
+    BOOST_CHECK_EQUAL( item::tag::i, x.type );
+    BOOST_CHECK_EQUAL( 5, x.ival );
+}
+
+BOOST_AUTO_TEST_CASE( repeat_int_mixed ) {
+    const std::string input = R"(
+RUNSPEC
+
+DIMENS
+    5 2*10 /
+)";
+
+    auto sec = parse( input.begin(), input.end() );
+    const auto& kw = at( sec, "DIMENS" ).at( 0 );
+    BOOST_CHECK_EQUAL( 2U, kw.size() );
+
+    const auto& x1 = kw.at( 0 );
+    BOOST_CHECK_EQUAL( 1, x1.repeat );
+    BOOST_CHECK_EQUAL( item::tag::i, x1.type );
+    BOOST_CHECK_EQUAL( 5, x1.ival );
+
+    const auto& x2 = kw.at( 1 );
+    BOOST_CHECK_EQUAL( 2, x2.repeat );
+    BOOST_CHECK_EQUAL( item::tag::i, x2.type );
+    BOOST_CHECK_EQUAL( 10, x2.ival );
+}
+
 // BOOST_AUTO_TEST_CASE( boolean_string_yes ) {
 //     const std::string inputs[] = {
 // R"(

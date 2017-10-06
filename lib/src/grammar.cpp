@@ -21,12 +21,14 @@ namespace bf        = boost::fusion;
 
 BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
-BOOST_FUSION_ADAPT_ADT( item,
-        (obj.ival,      obj.set(val))
-        (obj.fval,      obj.set(val))
-        (obj.sval,      obj.set(val))
-        (obj.repeat,    obj.set(val))
-)
+BOOST_FUSION_ADAPT_STRUCT( item, repeat, ival, fval, sval )
+BOOST_FUSION_ADAPT_STRUCT( star, val )
+//BOOST_FUSION_ADAPT_ADT( item,
+//        (obj.ival,      obj.set(val))
+//        (obj.fval,      obj.set(val))
+//        (obj.sval,      obj.set(val))
+//        (obj.repeat,    obj.set(val))
+//)
 
 namespace {
 
@@ -64,7 +66,7 @@ qi::rule< Itr, std::string(), skipper< Itr > > quoted_string =
  */
 
 #define primary() (qi::lexeme[qi::int_ >> !qi::char_(".eEdD")] | qi::double_)
-#define term()    ('/' >> qi::skip(qi::char_ - qi::eol)[qi::eps])
+#define term()    (qi::lit('/') >> qi::skip(qi::char_ - qi::eol)[qi::eps])
 
 /*
  * TODO: optimise backtracking patterns
@@ -80,6 +82,10 @@ qi::rule< Itr, item(), skipper< Itr > > itemrule = (
 ;
 
 template< typename Itr >
+qi::rule< Itr, record(), skipper< Itr > > rec =
+    *itemrule< Itr > >> term();
+
+template< typename Itr >
 struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
     using rule = qi::rule< Itr, T, skipper< Itr > >;
@@ -88,10 +94,11 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
         toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
         toggles += "METRIC", "FIELD", "LAB", "NOSIM";
-        syms += "DIMENS";
+        syms += "DIMENS", "EQLDIMS";
 
         start %= qi::string("RUNSPEC") >> *(
-            kword(syms) >> qi::repeat(1)[ *itemrule< Itr > >> term() ]
+            //kword(syms) >> qi::repeat(1)[ (*itemrule< Itr >) > term()]
+            kword(syms) >> qi::repeat(1)[ rec< Itr > ]
           | kword(toggles) >> qi::attr( empty_records )
         )
         ;
@@ -114,6 +121,10 @@ std::ostream& operator<<( std::ostream& stream, const item::tag& x ) {
         case item::tag::str: return stream << "str";
         default:             return stream << "none";
     }
+}
+
+std::ostream& operator<<( std::ostream& stream, const star& s ) {
+    return stream << int(s) << "*";
 }
 
 std::ostream& operator<<( std::ostream& stream, const item& x ) {

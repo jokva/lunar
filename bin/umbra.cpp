@@ -13,26 +13,30 @@ std::string dot( const section& sec ) {
 
     stream << sec.name << " -- { ";
     for( const auto& kw : sec.xs )
-        stream << kw.name << " ";
+        stream << kw.name << "[shape=box]" << " ";
     stream << "}" << std::endl;
 
     for( const auto& kw : sec.xs ) {
 
         stream << kw.name << " -- { ";
         for( size_t i = 0; i < kw.xs.size(); ++i ) {
-            stream << kw.name << "_" << i << " ";
+            stream << kw.name << "_" << i
+                << "[shape=diamond]"
+                << " ";
         }
         stream << " }" << std::endl;
 
         for( size_t i = 0; i < kw.xs.size(); ++i ) {
             const auto& rec = kw.xs[ i ];
 
-            stream << kw.name << "_" << i << " -- { ";
+            stream << kw.name << "_" << i
+                << " -- { ";
             for( size_t j = 0; j < rec.size(); ++j ) {
                 const auto& item = rec.at( j );
                 stream << kw.name << "_" << i << "_" << j
                        << "[shape=record, label="
-                       << "\"" << item << "\"" << "]";
+                       << "\"" << item << "\"" << "]"
+                       << " ";
             }
             stream << " }" << std::endl;
 

@@ -8,7 +8,7 @@
 struct star {
     star() = default;
     star( int x ) : val( x ) {}
-    //operator int() { return this->val; }
+    operator int() const { return this->val; }
     int val = 1;
 };
 
@@ -16,7 +16,7 @@ struct item {
     enum class tag { i, f, str, none };
 
     tag type = tag::none;
-    int repeat = -1;
+    star repeat = 1;
 
     item() = default;
 
@@ -87,6 +87,7 @@ section parse( std::string::const_iterator fst,
 
 std::string dot( const section& );
 
+std::ostream& operator<<( std::ostream&, const star& );
 std::ostream& operator<<( std::ostream&, const item::tag& );
 std::ostream& operator<<( std::ostream&, const item& );
 
