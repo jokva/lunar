@@ -19,19 +19,18 @@ struct item {
 
     item() = default;
 
-    item( int star, int x )    : type( tag::i ), repeat( star ), ival( x ) {}
-    item( int star, double x ) : type( tag::f ), repeat( star ), fval( x ) {}
-    item( int star, std::string x ) :
+    item( star s, int x )    : type( tag::i ), repeat( s ), ival( x ) {}
+    item( star s, double x ) : type( tag::f ), repeat( s ), fval( x ) {}
+    item( star s, std::string x ) :
         type( tag::str ),
-        repeat( star ),
+        repeat( s ),
         sval( std::move( x ) ) {}
 
-    item( int, star x ) : type( tag::none ), repeat( x.val ) {}
-    item( int star, tag ) : type( tag::none ), repeat( star ) {}
-    static item defaulted( int star = 1 ) { return item( star, tag::none ); }
+    item( star s ) : type( tag::none ), repeat( s ) {}
+    static item defaulted( int star = 1 ) { return item( star ); };
 
     template< typename T >
-    item( T x ) : item( 1, std::forward< T >( x ) ) {}
+    item( T x ) : item( star{ 1 }, std::forward< T >( x ) ) {}
 
     int ival;
     double fval;
