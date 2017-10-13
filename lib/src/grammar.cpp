@@ -140,6 +140,13 @@ qi::rule< Itr, item() > itemrule< Itr, int, std::string > =
     | itemrule< Itr, std::string >
 ;
 
+template< typename Itr >
+qi::rule< Itr, item() > itemrule< Itr, int, double, std::string > =
+      itemrule< Itr, int >
+    | itemrule< Itr, double >
+    | itemrule< Itr, std::string >
+;
+
 template< typename Itr, typename... T >
 qi::rule< Itr, record(), skipper< Itr > > rec =
     *( itemrule< Itr, T... >
