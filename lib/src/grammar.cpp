@@ -162,17 +162,28 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
 
     grammar() : grammar::base_type( start ) {
 
-        toggles =  "OIL", "WATER", "DISGAS", "VAPOIL";
-        toggles += "METRIC", "FIELD", "LAB", "NOSIM";
-        singlei += "DIMENS", "EQLDIMS";
-        singlef += "MAPAXES";
+        toggles  += "OIL", "WATER", "GAS", "DISGAS", "VAPOIL";
+        toggles  += "METRIC", "FIELD", "LAB", "NOSIM", "UNIFIN", "UNIFOUT";
+
+        singlei  += "DIMENS", "EQLDIMS", "REGDIMS", "WELLDIMS";
+        singlei  += "VFPIDIMS", "VFPPDIMS", "FAULTDIM", "PIMTDIMS";
+        singlei  += "NSTACK", "OPTIONS";
+
+        singlef  += "MAPAXES";
+
+        singles  += "EQLOPTS", "SATOPTS";
+
+        singleis += "ENDSCALE", "GRIDOPTS", "START", "TABDIMS";
+
+        single_all += "TRACERS";
 
         start %= qi::string("RUNSPEC") >> *(
-            kword(singlei) >> qi::repeat(1)[ rec< Itr, int > ]
-          | kword(singlef) >> qi::repeat(1)[ rec< Itr, double > ]
-          | kword(toggles) >> qi::attr( empty_records )
-          | qi::string("GRIDOPTS") >>
-                qi::repeat(1)[ rec< Itr, int, std::string > ]
+            kword(singlei)      >> rec< Itr, int >
+          | kword(singlef)      >> rec< Itr, double >
+          | kword(singles)      >> rec< Itr, std::string >
+          | kword(singleis)     >> rec< Itr, int, std::string >
+          | kword(single_all)   >> rec< Itr, int, double, std::string >
+          | kword(toggles)  >> qi::attr( empty_records )
         )
         ;
 
@@ -183,10 +194,14 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
         itemrule< Itr, int, double >.name( "item[int|flt]" );
         itemrule< Itr, std::string >.name( "item[str]" );
         itemrule< Itr, int, std::string >.name( "item[int|str]" );
+        itemrule< Itr, int, double, std::string >.name( "item[*]" );
     }
 
     qi::symbols<> singlei;
     qi::symbols<> singlef;
+    qi::symbols<> singles;
+    qi::symbols<> singleis;
+    qi::symbols<> single_all;
     qi::symbols<> toggles;
     rule< section() > start;
 };
