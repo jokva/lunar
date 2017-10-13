@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+namespace lun {
+
 struct item {
     enum class tag { i, f, str, none };
     struct star {
@@ -57,5 +59,7 @@ std::string dot( const section& );
 std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::tag& );
 std::ostream& operator<<( std::ostream&, const item& );
+
+}
 
 #endif // PARSER_HPP

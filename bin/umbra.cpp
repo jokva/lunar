@@ -6,7 +6,7 @@
 
 #include <lunar/parser.hpp>
 
-std::string dot( const section& sec ) {
+std::string lun::dot( const section& sec ) {
     std::stringstream stream;
 
     stream << "strict graph {" << std::endl;
@@ -57,7 +57,7 @@ int main( int , char** argv ) {
 
     auto begin = input.cbegin();
     auto end   = input.cend();
-    auto sec = parse( begin, end );
+    auto sec = lun::parse( begin, end );
 
-    std::cout << dot( sec ) << std::endl;
+    std::cout << lun::dot( sec ) << std::endl;
 }

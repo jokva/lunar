@@ -15,10 +15,12 @@ namespace qi        = boost::spirit::qi;
 namespace ascii     = boost::spirit::ascii;
 namespace bf        = boost::fusion;
 
-BOOST_FUSION_ADAPT_STRUCT( section, name, xs )
-BOOST_FUSION_ADAPT_STRUCT( keyword, name, xs )
-BOOST_FUSION_ADAPT_STRUCT( item, repeat, ival, fval, sval )
-BOOST_FUSION_ADAPT_STRUCT( item::star, val )
+BOOST_FUSION_ADAPT_STRUCT( lun::section, name, xs )
+BOOST_FUSION_ADAPT_STRUCT( lun::keyword, name, xs )
+BOOST_FUSION_ADAPT_STRUCT( lun::item, repeat, ival, fval, sval )
+BOOST_FUSION_ADAPT_STRUCT( lun::item::star, val )
+
+namespace lun {
 
 namespace {
 
@@ -222,4 +224,6 @@ section parse( std::string::const_iterator fst,
     auto ok = qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
     if( !ok ) std::cerr << "PARSE FAILED" << std::endl;
     return sec;
+}
+
 }

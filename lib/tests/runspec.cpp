@@ -6,6 +6,8 @@
 
 #include <lunar/parser.hpp>
 
+namespace lun {
+
 bool operator==( const std::string& key, const keyword& kw ) {
     return key == kw.name;
 }
@@ -400,4 +402,6 @@ GRIDOPTS
         BOOST_CHECK_EQUAL( item::tag::i, x2.type );
         BOOST_CHECK_EQUAL( x2.ival, 0 );
     }
+}
+
 }
