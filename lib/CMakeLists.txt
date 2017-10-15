@@ -8,7 +8,7 @@ target_include_directories(lunar-grammar PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-add_executable(runspec-tests tests/runspec.cpp)
-target_link_libraries(runspec-tests Boost::unit_test_framework lunar-grammar)
-target_compile_definitions(runspec-tests PUBLIC -DBOOST_TEST_DYN_LINK)
-add_test(NAME runspec COMMAND runspec-tests)
+add_executable(basic-rules tests/basic-rules.cpp)
+target_link_libraries(basic-rules Boost::unit_test_framework lunar-grammar)
+target_compile_definitions(basic-rules PUBLIC -DBOOST_TEST_DYN_LINK)
+add_test(NAME basic-rules COMMAND basic-rules)
