@@ -184,7 +184,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
           | kword(singleis)     >> rec< Itr, int, std::string >
           | kword(single_all)   >> rec< Itr, int, double, std::string >
           | kword(toggles)  >> qi::attr( empty_records )
-        )
+        ) >> qi::eoi;
         ;
 
         start.name( "start" );
