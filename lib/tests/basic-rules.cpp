@@ -55,6 +55,15 @@ DIMENS
 
 OIL
 )";
+
+    auto sec = parse( input.begin(), input.end() );
+    BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
+    BOOST_CHECK( has_keyword( sec.xs, "DIMENS" ) );
+    BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
+    auto& dimens = at( sec, "DIMENS" ).at( 0 );
+
+    for( const auto& item : dimens )
+        BOOST_CHECK_EQUAL( item.type, item::tag::i );
 }
 
 BOOST_AUTO_TEST_CASE( no_space_before_slash ) {
