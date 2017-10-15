@@ -180,7 +180,7 @@ DIMENS
 
 BOOST_AUTO_TEST_CASE( repeat_float ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     3*100. 2*13.1 4*.3 /
@@ -206,7 +206,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( repeat_float_mixed ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     1.2 2*2.4 .8 /
@@ -232,7 +232,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( float_without_exponent ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     .5 0.5 0.500 50. /
@@ -255,7 +255,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( negative_float_without_exponent ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     -.5 -0.5 -0.500 /
@@ -273,7 +273,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( float_with_exponent ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     .5e2 0.5e2 0.500e2
@@ -295,7 +295,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( negative_float_with_exponent ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     -.5e2 -0.5e2 -0.500e2
@@ -317,7 +317,7 @@ MAPAXES
 
 BOOST_AUTO_TEST_CASE( float_with_negative_exponent ) {
     const std::string input = R"(
-RUNSPEC
+GRID
 
 MAPAXES
     .5e-2 0.5e-2 0.500e-2

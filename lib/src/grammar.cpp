@@ -169,8 +169,6 @@ struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
         singlei  += "VFPIDIMS", "VFPPDIMS", "FAULTDIM", "PIMTDIMS";
         singlei  += "NSTACK", "OPTIONS";
 
-        singlef  += "MAPAXES";
-
         singles  += "EQLOPTS", "SATOPTS";
 
         singleis += "ENDSCALE", "GRIDOPTS", "START", "TABDIMS";
@@ -187,7 +185,6 @@ struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
           )
         ;
 
-        start.name( "start" );
         itemrule< Itr >.name( "item" );
         itemrule< Itr, int >.name( "item[int]" );
         itemrule< Itr, double >.name( "item[flt]" );
@@ -207,13 +204,40 @@ struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
 };
 
 template< typename Itr >
+struct grid : qi::grammar< Itr, section(), skipper< Itr > > {
+    grid() : grid::base_type( start ) {
+
+        toggles += "NEWTRAN";
+
+        singlei += "GRIDFILE";
+
+        singlef += "MAPAXES";
+
+        start %= qi::string("GRID") >> *(
+            kword(singlei)      >> rec< Itr, int >
+          | kword(singlef)      >> rec< Itr, double >
+          | kword(toggles)      >> qi::attr( empty_records )
+          )
+        ;
+    }
+
+    qi::symbols<> toggles;
+    qi::symbols<> singlei;
+    qi::symbols<> singlef;
+    qi::rule< Itr, section(), skipper< Itr > > start;
+};
+
+template< typename Itr >
 struct deckp : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
     deckp() : deckp::base_type( start ) {
-        start %= RUNSPEC
-              >> qi::eoi;
+        start %= (RUNSPEC | -RUNSPEC)
+              >> (GRID    | -GRID)
+              >> qi::eoi
+        ;
     }
 
     runspec< Itr > RUNSPEC;
+    grid< Itr > GRID;
     qi::rule< Itr, std::vector< section >(), skipper< Itr > > start;
 };
 
