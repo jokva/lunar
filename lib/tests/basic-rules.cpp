@@ -56,7 +56,7 @@ DIMENS
 OIL
 )";
 
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
     BOOST_CHECK( has_keyword( sec.xs, "DIMENS" ) );
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
@@ -75,7 +75,7 @@ DIMENS
 OIL
 )";
 
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
     BOOST_CHECK( has_keyword( sec.xs, "DIMENS" ) );
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
@@ -95,7 +95,7 @@ DIMENS
 OIL
 )";
 
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
     BOOST_CHECK( has_keyword( sec.xs, "DIMENS" ) );
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
@@ -112,7 +112,7 @@ RUNSPEC
 WATER
 OIL
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     BOOST_CHECK_EQUAL( "RUNSPEC", sec.name );
     BOOST_CHECK( has_keyword( sec.xs, "WATER" ) );
     BOOST_CHECK( has_keyword( sec.xs, "OIL" ) );
@@ -129,7 +129,7 @@ DIMENS
 
 WATER
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& dimens = at( sec, "DIMENS" ).at( 0 );
     int exp[] = { 10, 20, 30 };
 
@@ -144,7 +144,7 @@ RUNSPEC
 EQLDIMS
     3*5 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "EQLDIMS" ).at( 0 );
 
     BOOST_CHECK_EQUAL( 1U, kw.size() );
@@ -163,7 +163,7 @@ DIMENS
     5 2*10 /
 )";
 
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "DIMENS" ).at( 0 );
     BOOST_CHECK_EQUAL( 2U, kw.size() );
 
@@ -185,7 +185,7 @@ RUNSPEC
 MAPAXES
     3*100. 2*13.1 4*.3 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     const auto& x1 = kw.at( 0 );
@@ -211,7 +211,7 @@ RUNSPEC
 MAPAXES
     1.2 2*2.4 .8 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     const auto& x1 = kw.at( 0 );
@@ -237,7 +237,7 @@ RUNSPEC
 MAPAXES
     .5 0.5 0.500 50. /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     for( int i = 0; i < 3; ++i ) {
@@ -260,7 +260,7 @@ RUNSPEC
 MAPAXES
     -.5 -0.5 -0.500 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     for( int i = 0; i < 3; ++i ) {
@@ -282,7 +282,7 @@ MAPAXES
     .5D2 0.5D2 0.500D2
 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     for( int i = 0; i < 6; ++i ) {
@@ -304,7 +304,7 @@ MAPAXES
     -.5D2 -0.5D2 -0.500D2
 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     for( int i = 0; i < 6; ++i ) {
@@ -326,7 +326,7 @@ MAPAXES
     .5D-2 0.5D-2 0.500D-2
 /
 )";
-    auto sec = parse( input.begin(), input.end() );
+    auto sec = parse( input.begin(), input.end() ).front();
     const auto& kw = at( sec, "MAPAXES" ).at( 0 );
 
     for( int i = 0; i < 6; ++i ) {
@@ -375,7 +375,7 @@ GRIDOPTS
     for( const auto& input : inputs ) {
         const auto& result = results[ i++ ];
 
-        auto sec = parse( input.begin(), input.end() );
+        auto sec = parse( input.begin(), input.end() ).front();
         const auto& kw = at( sec, "GRIDOPTS" ).at( 0 );
 
         const auto& x1 = kw.at( 0 );

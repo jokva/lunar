@@ -6,42 +6,45 @@
 
 #include <lunar/parser.hpp>
 
-std::string lun::dot( const section& sec ) {
+std::string lun::dot( const std::vector< section >& secs ) {
     std::stringstream stream;
 
     stream << "strict graph {" << std::endl;
 
-    stream << sec.name << " -- { ";
-    for( const auto& kw : sec.xs )
-        stream << kw.name << "[shape=box]" << " ";
-    stream << "}" << std::endl;
+    for( const auto& sec : secs ) {
 
-    for( const auto& kw : sec.xs ) {
+        stream << sec.name << " -- { ";
+        for( const auto& kw : sec.xs )
+            stream << kw.name << "[shape=box]" << " ";
+        stream << "}" << std::endl;
 
-        stream << kw.name << " -- { ";
-        for( size_t i = 0; i < kw.xs.size(); ++i ) {
-            stream << kw.name << "_" << i
-                << "[shape=diamond]"
-                << " ";
-        }
-        stream << " }" << std::endl;
+        for( const auto& kw : sec.xs ) {
 
-        for( size_t i = 0; i < kw.xs.size(); ++i ) {
-            const auto& rec = kw.xs[ i ];
-
-            stream << kw.name << "_" << i
-                << " -- { ";
-            for( size_t j = 0; j < rec.size(); ++j ) {
-                const auto& item = rec.at( j );
-                stream << kw.name << "_" << i << "_" << j
-                       << "[shape=record, label="
-                       << "\"" << item << "\"" << "]"
-                       << " ";
+            stream << kw.name << " -- { ";
+            for( size_t i = 0; i < kw.xs.size(); ++i ) {
+                stream << kw.name << "_" << i
+                    << "[shape=diamond]"
+                    << " ";
             }
             stream << " }" << std::endl;
 
+            for( size_t i = 0; i < kw.xs.size(); ++i ) {
+                const auto& rec = kw.xs[ i ];
 
+                stream << kw.name << "_" << i
+                    << " -- { ";
+                for( size_t j = 0; j < rec.size(); ++j ) {
+                    const auto& item = rec.at( j );
+                    stream << kw.name << "_" << i << "_" << j
+                        << "[shape=record, label="
+                        << "\"" << item << "\"" << "]"
+                        << " ";
+                }
+                stream << " }" << std::endl;
+
+            }
         }
+
     }
 
     stream << "}";

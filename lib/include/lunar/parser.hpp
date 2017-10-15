@@ -51,10 +51,10 @@ struct section {
     std::vector< keyword > xs;
 };
 
-section parse( std::string::const_iterator fst,
-               std::string::const_iterator lst );
+std::vector< section > parse( std::string::const_iterator fst,
+                              std::string::const_iterator lst );
 
-std::string dot( const section& );
+std::string dot( const std::vector< section >& );
 
 std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::tag& );

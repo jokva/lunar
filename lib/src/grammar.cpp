@@ -156,11 +156,11 @@ qi::rule< Itr, record(), skipper< Itr > > rec =
     >> term();
 
 template< typename Itr >
-struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
+struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
     template< typename T >
     using rule = qi::rule< Itr, T, skipper< Itr > >;
 
-    grammar() : grammar::base_type( start ) {
+    runspec() : runspec::base_type( start ) {
 
         toggles  += "OIL", "WATER", "GAS", "DISGAS", "VAPOIL";
         toggles  += "METRIC", "FIELD", "LAB", "NOSIM", "UNIFIN", "UNIFOUT";
@@ -184,7 +184,7 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
           | kword(singleis)     >> rec< Itr, int, std::string >
           | kword(single_all)   >> rec< Itr, int, double, std::string >
           | kword(toggles)  >> qi::attr( empty_records )
-        ) >> qi::eoi;
+          )
         ;
 
         start.name( "start" );
@@ -204,6 +204,17 @@ struct grammar : qi::grammar< Itr, section(), skipper< Itr > > {
     qi::symbols<> single_all;
     qi::symbols<> toggles;
     rule< section() > start;
+};
+
+template< typename Itr >
+struct deckp : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
+    deckp() : deckp::base_type( start ) {
+        start %= RUNSPEC
+              >> qi::eoi;
+    }
+
+    runspec< Itr > RUNSPEC;
+    qi::rule< Itr, std::vector< section >(), skipper< Itr > > start;
 };
 
 }
@@ -235,13 +246,13 @@ std::ostream& operator<<( std::ostream& stream, const item& x ) {
     return stream << "}";
 }
 
-section parse( std::string::const_iterator fst,
-               std::string::const_iterator lst ) {
+std::vector< section > parse( std::string::const_iterator fst,
+                              std::string::const_iterator lst ) {
 
-    using grm = grammar< std::string::const_iterator >;
+    using grm = deckp< std::string::const_iterator >;
 
     grm parser;
-    section sec;
+    std::vector< section > sec;
 
     auto ok = qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
     if( !ok ) std::cerr << "PARSE FAILED" << std::endl;
