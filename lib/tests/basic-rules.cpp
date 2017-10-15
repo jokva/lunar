@@ -345,7 +345,7 @@ GRIDOPTS
 R"(
 RUNSPEC
 GRIDOPTS
-    YES 0 0 /
+    1*YES 0 0 /
 )",
 
 R"(
@@ -354,34 +354,9 @@ GRIDOPTS
     Y 0 /
 )",
 
-R"(
-RUNSPEC
-GRIDOPTS
-    'yes' 0 /
-)",
-
-R"(
-RUNSPEC
-GRIDOPTS
-    'y' 0 /
-)",
-
-R"(
-RUNSPEC
-GRIDOPTS
-    yes 0 /
-)",
-
-R"(
-RUNSPEC
-GRIDOPTS
-    y 0 /
-)"
-
 };
 
-    const std::string results[] = { "YES", "Y", "YES", "Y",
-                                    "yes", "y", "yes", "y" };
+    const std::string results[] = { "YES", "Y", "YES", "Y" };
 
     auto isize = std::distance( std::begin( inputs ), std::end( inputs ) );
     auto rsize = std::distance( std::begin( results ), std::end( results ) );
