@@ -131,7 +131,8 @@ qi::rule< Itr, item() > itemrule< Itr, int, double > =
 template< typename Itr >
 qi::rule< Itr, item() > itemrule< Itr, std::string > =
       str< Itr >[qi::_val = qi::_1]
-    | star< Itr > >> str< Itr >[qi::_val = qi::_1]
+    | (star< Itr > >> str< Itr >)
+        [qi::_val = phx::construct< item >(qi::_1, qi::_2)]
 ;
 
 template< typename Itr >
