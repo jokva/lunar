@@ -8,7 +8,12 @@ target_include_directories(lunar-grammar PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-add_executable(basic-rules tests/basic-rules.cpp)
-target_link_libraries(basic-rules Boost::unit_test_framework lunar-grammar)
-target_compile_definitions(basic-rules PUBLIC -DBOOST_TEST_DYN_LINK)
-add_test(NAME basic-rules COMMAND basic-rules)
+if(NOT BUILD_TESTING)
+    return()
+endif()
+
+add_executable(testsuite tests/testsuite.cpp
+                         tests/basic-rules.cpp
+)
+target_link_libraries(testsuite lunar-grammar catch2)
+add_test(NAME testsuite COMMAND testsuite)
