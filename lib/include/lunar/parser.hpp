@@ -1,6 +1,7 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -53,6 +54,14 @@ struct section {
 
 std::vector< section > parse( std::string::const_iterator fst,
                               std::string::const_iterator lst );
+
+struct inlined {
+    std::vector< char > inlined;
+    std::vector< std::string > included;
+};
+
+
+inlined concatenate( const std::string& path );
 
 std::string dot( const std::vector< section >& );
 

@@ -1,0 +1,3 @@
+PATHS
+    NESTED 'include-valid\' /
+/

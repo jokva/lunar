@@ -1,0 +1,4 @@
+INCLUDE
+    'include-valid/path-in-include.inc' /
+INCLUDE
+    '$NESTED/include-in-valid.inc' /

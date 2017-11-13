@@ -1,0 +1,5 @@
+PATHS
+    'NESTED' 'include-valid' /
+/
+INCLUDE
+    '$NESTED/include-in-valid.inc' /
