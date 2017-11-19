@@ -6,10 +6,11 @@
 #include <string>
 #include <vector>
 
+#include <boost/variant.hpp>
+
 namespace lun {
 
 struct item {
-    enum class tag { i, f, str, none };
     struct star {
         star() = default;
         star( int x ) : val( x ) {}
@@ -17,27 +18,10 @@ struct item {
         int val = 1;
     };
 
-    tag type = tag::none;
-    star repeat = 1;
+    struct none {};
 
-    item() = default;
-
-    item( star s, int x )    : type( tag::i ), repeat( s ), ival( x ) {}
-    item( star s, double x ) : type( tag::f ), repeat( s ), fval( x ) {}
-    item( star s, std::string x ) :
-        type( tag::str ),
-        repeat( s ),
-        sval( std::move( x ) ) {}
-
-    item( star s ) : type( tag::none ), repeat( s ) {}
-    static item defaulted( int repeat = 1 ) { return item( star { repeat } ); };
-
-    template< typename T >
-    item( T x ) : item( star{ 1 }, std::forward< T >( x ) ) {}
-
-    int ival;
-    double fval;
-    std::string sval;
+    boost::variant< int, double, std::string, none > val;
+    star repeat;
 };
 
 using record = std::vector< item >;
@@ -66,7 +50,7 @@ inlined concatenate( const std::string& path );
 std::string dot( const std::vector< section >& );
 
 std::ostream& operator<<( std::ostream&, const item::star& );
-std::ostream& operator<<( std::ostream&, const item::tag& );
+std::ostream& operator<<( std::ostream&, const item::none& );
 std::ostream& operator<<( std::ostream&, const item& );
 
 }

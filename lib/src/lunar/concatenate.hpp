@@ -65,7 +65,7 @@ public:
     void insert( Itr fst, Itr lst ) {
         auto end = this->aliases.end();
         this->aliases.insert( end, fst, lst );
-    };
+    }
 
 private:
     std::vector< kv > aliases;

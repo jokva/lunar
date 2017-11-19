@@ -8,7 +8,7 @@ find_package(Boost REQUIRED iostreams)
 
 set(CMAKE_CXX_STANDARD 14)
 check_cxx_source_compiles(
-    "int main(){ return __builtin_expect(l,1); }"
+    "int main(){ return __builtin_expect(0,1); }"
     HAVE_BUILTIN_EXPECT
 )
 

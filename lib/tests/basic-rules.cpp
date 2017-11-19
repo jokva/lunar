@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 #include <lunar/parser.hpp>
 
@@ -38,27 +39,35 @@ class HasKeyword : public Catch::MatcherBase< std::vector< lun::keyword > > {
         std::string name;
 };
 
+struct typedescr {
+    std::string operator()( int ) const              { return "int"; }
+    std::string operator()( double ) const           { return "float"; }
+    std::string operator()( std::string ) const      { return "string"; }
+    std::string operator()( lun::item::none ) const  { return "none"; }
+};
+
+template< typename T >
+struct istype : boost::static_visitor< bool > {
+    template< typename U >
+    bool operator()( U ) const { return std::is_same< T, U >::value; }
+};
+
+template< typename T >
 class IsType : public Catch::MatcherBase< lun::item > {
     public:
-        IsType( lun::item::tag x ) : type( x ) {}
 
         bool match( const lun::item& x ) const override {
-            return this->type == x.type;
+            return boost::apply_visitor( istype< T >(), x.val );
         }
 
         virtual std::string describe() const override {
-            std::stringstream ss;
-            ss << "is of type " << this->type;
-            return ss.str();
+            return "is of type " + typedescr()( T() );
         }
-
-    private:
-        lun::item::tag type;
 };
 
-IsType IsInt() { return IsType( lun::item::tag::i ); }
-IsType IsFloat() { return IsType( lun::item::tag::f ); }
-IsType IsString() { return IsType( lun::item::tag::str ); }
+auto IsInt()    -> IsType< int >         { return IsType< int >(); }
+auto IsFloat()  -> IsType< double >      { return IsType< double >(); }
+auto IsString() -> IsType< std::string > { return IsType< std::string >(); }
 
 class Repeats : public Catch::MatcherBase< lun::item > {
     public:
@@ -85,6 +94,24 @@ const lun::keyword& get( const std::string& key,
     if( itr == kws.end() ) throw std::out_of_range( "Key not found: " + key );
 
     return *itr;
+}
+
+/*
+ * implement operator== for item so that tests can be written as item == 10
+ * (int), item == "STRING" or item == Approx(1.5)
+ */
+
+template< typename T >
+bool operator==( const lun::item& lhs, T rhs ) {
+    return boost::get< T >( lhs.val ) == rhs;
+}
+
+bool operator==( const lun::item& lhs, const Approx& rhs ) {
+    return boost::get< double >( lhs.val ) == rhs;
+}
+
+bool operator==( const lun::item& lhs, const char* rhs ) {
+    return lhs == std::string( rhs );
 }
 
 }
@@ -136,7 +163,7 @@ OIL
         const auto& rec = eqldims.xs[ 0 ];
         REQUIRE( !rec.empty() );
         REQUIRE_THAT( rec[ 0 ], IsInt() );
-        CHECK( rec[ 0 ].ival == 2 );
+        CHECK( rec[ 0 ] == 2 );
     }
 
     SECTION( "/ on new line does not change the value" ) {
@@ -148,7 +175,7 @@ OIL
         auto& rec = kw.xs[ 0 ];
         REQUIRE( !rec.empty() );
         REQUIRE_THAT( rec[ 0 ], IsInt() );
-        CHECK( rec[ 0 ].ival == 10 );
+        CHECK( rec[ 0 ] == 10 );
     }
 }
 
@@ -177,7 +204,7 @@ DIMENS
         const auto& x = kw.xs[ 0 ][ 0 ];
         CHECK_THAT( x, Repeats( 3 ) );
         REQUIRE_THAT( x, IsInt() );
-        CHECK( x.ival == 5 );
+        CHECK( x == 5 );
     }
 
     SECTION( "int, repeated int" ) {
@@ -190,14 +217,14 @@ DIMENS
         SECTION( "the single integer" ) {
             const auto& x = kw.xs[ 0 ][ 0 ];
             REQUIRE_THAT( x, IsInt() );
-            CHECK( x.ival == 5 );
+            CHECK( x == 5 );
         }
 
         SECTION( "the repeated integer" ) {
             const auto& x = kw.xs[ 0 ][ 1 ];
             REQUIRE_THAT( x, IsInt() );
             CHECK_THAT( x, Repeats( 2 ) );
-            CHECK( x.ival == 10 );
+            CHECK( x == 10 );
         }
     }
 }
@@ -259,21 +286,21 @@ MAPAXES
             const auto& item = rec[ 0 ];
             CHECK_THAT( item, Repeats( 3 ) );
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 100 ) );
+            CHECK( item == Approx( 100 ) );
         }
 
         SECTION( "2*13.1" ) {
             const auto& item = rec[ 1 ];
             CHECK_THAT( item, Repeats( 2 ) );
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 13.1 ) );
+            CHECK( item == Approx( 13.1 ) );
         }
 
         SECTION( "4*.3" ) {
             const auto& item = rec[ 2 ];
             CHECK_THAT( item, Repeats( 4 ) );
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( .3 ) );
+            CHECK( item == Approx( .3 ) );
         }
     }
 
@@ -285,67 +312,67 @@ MAPAXES
         SECTION( "1.2" ) {
             const auto& item = rec[ 0 ];
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 1.2 ) );
+            CHECK( item == Approx( 1.2 ) );
         }
 
         SECTION( "2*2.4" ) {
             const auto& item = rec[ 1 ];
             CHECK_THAT( item, Repeats( 2 ) );
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 2.4 ) );
+            CHECK( item == Approx( 2.4 ) );
         }
 
         SECTION( ".8" ) {
             const auto& item = rec[ 2 ];
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 0.8 ) );
+            CHECK( item == Approx( 0.8 ) );
         }
 
         SECTION( "8.0" ) {
             const auto& item = rec[ 3 ];
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 8 ) );
+            CHECK( item == Approx( 8 ) );
         }
 
         SECTION( "8." ) {
             const auto& item = rec[ 4 ];
             CHECK_THAT( item, IsFloat() );
-            CHECK( item.fval == Approx( 8 ) );
+            CHECK( item == Approx( 8 ) );
         }
     }
 
     SECTION( "can be written without exponent" ) {
         for( const auto& x : sec.xs[ 2 ].xs.front() ) {
             REQUIRE_THAT( x, IsFloat() );
-            CHECK( x.fval == Approx( 0.5 ) );
+            CHECK( x == Approx( 0.5 ) );
         }
     }
 
     SECTION( "can be negative" ) {
         for( const auto& x : sec.xs[ 3 ].xs.front() ) {
             REQUIRE_THAT( x, IsFloat() );
-            CHECK( x.fval == Approx( -0.5 ) );
+            CHECK( x == Approx( -0.5 ) );
         }
     }
 
     SECTION( "can be written in exponential notation" ) {
         for( const auto& x : sec.xs[ 4 ].xs.front() ) {
             REQUIRE_THAT( x, IsFloat() );
-            CHECK( x.fval == Approx( 50 ) );
+            CHECK( x == Approx( 50 ) );
         }
     }
 
     SECTION( "can be negative with exponential notation" ) {
         for( const auto& x : sec.xs[ 5 ].xs.front() ) {
             REQUIRE_THAT( x, IsFloat() );
-            CHECK( x.fval == Approx( -50 ) );
+            CHECK( x == Approx( -50 ) );
         }
     }
 
     SECTION( "can have negative exponent" ) {
         for( const auto& x : sec.xs[ 6 ].xs.front() ) {
             REQUIRE_THAT( x, IsFloat() );
-            CHECK( x.fval == Approx( 0.005 ) );
+            CHECK( x == Approx( 0.005 ) );
         }
     }
 }
@@ -383,32 +410,32 @@ GRIDOPTS
     SECTION( "can be quoted" ) {
         const auto& x = sec.xs[ 0 ].xs.front().front();
         REQUIRE_THAT( x, IsString() );
-        CHECK( x.sval == "YES" );
+        CHECK( x == "YES" );
     }
 
     SECTION( "can omit quotes" ) {
         const auto& x = sec.xs[ 1 ].xs.front().front();
         REQUIRE_THAT( x, IsString() );
-        CHECK( x.sval == "YES" );
+        CHECK( x == "YES" );
     }
 
     SECTION( "can be repeated with quotes" ) {
         const auto& x = sec.xs[ 2 ].xs.front().front();
         REQUIRE_THAT( x, IsString() );
         CHECK_THAT( x, Repeats( 2 ) );
-        CHECK( x.sval == "YES" );
+        CHECK( x == "YES" );
     }
 
     SECTION( "can be repeated without quotes" ) {
         const auto& x = sec.xs[ 3 ].xs.front().front();
         REQUIRE_THAT( x, IsString() );
         CHECK_THAT( x, Repeats( 2 ) );
-        CHECK( x.sval == "YES" );
+        CHECK( x == "YES" );
     }
 
     SECTION( "stops at slash without whitespace" ) {
         const auto& x = sec.xs[ 4 ].xs.front().front();
         REQUIRE_THAT( x, IsString() );
-        CHECK( x.sval == "YES" );
+        CHECK( x == "YES" );
     }
 }

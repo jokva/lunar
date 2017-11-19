@@ -9,6 +9,7 @@
 #define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #define BOOST_SPIRIT_DEBUG 1
 
+#include <boost/fusion/include/adapt_struct_named.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/spirit/include/phoenix.hpp>
@@ -28,7 +29,9 @@ namespace bf        = boost::fusion;
 
 BOOST_FUSION_ADAPT_STRUCT( lun::section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( lun::keyword, name, xs )
-BOOST_FUSION_ADAPT_STRUCT( lun::item, repeat, ival, fval, sval )
+// NB! reversed member order in the adapted struct, because in the grammar,
+// repeats comes first
+BOOST_FUSION_ADAPT_STRUCT( lun::item, repeat, val )
 BOOST_FUSION_ADAPT_STRUCT( lun::item::star, val )
 
 namespace lun {
@@ -123,27 +126,26 @@ qi::rule< Itr, item() > itemrule;
  */
 template< typename Itr >
 qi::rule< Itr, item() > itemrule< Itr, int > =
-      qi::int_ >> !qi::lit('*')
+      qi::attr( item::star( 0 ) ) >> qi::int_ >> !qi::lit('*')
     | star< Itr > >> qi::int_
 ;
 
 template< typename Itr >
 qi::rule< Itr, item() > itemrule< Itr, double > =
-      f77float >> !qi::lit('*')
-    | star< Itr > >> qi::attr( 0 ) >> f77float
+      qi::attr( item::star( 0 ) ) >> f77float >> !qi::lit('*')
+    | star< Itr > >> f77float
 ;
 
 template< typename Itr >
 qi::rule< Itr, item() > itemrule< Itr, int, double > =
-      primary() >> !qi::lit('*')
+      qi::attr( item::star( 0 ) ) >> primary() >> !qi::lit('*')
     | star< Itr > >> primary()
 ;
 
 template< typename Itr >
 qi::rule< Itr, item() > itemrule< Itr, std::string > =
-      str< Itr >[qi::_val = qi::_1]
-    | (star< Itr > >> str< Itr >)
-        [qi::_val = phx::construct< item >(qi::_1, qi::_2)]
+     qi::attr( item::star( 0 ) ) >> str< Itr > >> !qi::lit('*')
+    | star< Itr > >> str< Itr >
 ;
 
 template< typename Itr >
@@ -162,8 +164,8 @@ qi::rule< Itr, item() > itemrule< Itr, int, double, std::string > =
 template< typename Itr, typename... T >
 qi::rule< Itr, record(), skipper< Itr > > rec =
     *( itemrule< Itr, T... >
-     | star< Itr >
-     | '*'
+     | star< Itr > >> qi::attr( item::none{} )
+     | '*' >> qi::attr( item::star( 0 ) ) >> qi::attr( item::none{} )
      )
     >> term();
 
@@ -462,32 +464,26 @@ inlined concatenate( const std::string& path ) {
     return { std::move( output ), std::move( input_files ) };
 }
 
-
-std::ostream& operator<<( std::ostream& stream, const item::tag& x ) {
-    switch( x ) {
-        case item::tag::i:   return stream << "int";
-        case item::tag::f:   return stream << "float";
-        case item::tag::str: return stream << "str";
-        default:             return stream << "none";
-    }
-}
-
 std::ostream& operator<<( std::ostream& stream, const item::star& s ) {
     return stream << int(s) << "*";
 }
 
+std::ostream& operator<<( std::ostream& stream, const item::none& ) {
+    return stream << "_";
+}
+
 std::ostream& operator<<( std::ostream& stream, const item& x ) {
-    stream << "{" << x.type << "|";
+    struct type : boost::static_visitor< const char* > {
+        const char* operator()( int ) const                 { return "int"; }
+        const char* operator()( double ) const              { return "float"; }
+        const char* operator()( const std::string& ) const  { return "str"; }
+        const char* operator()( const item::none ) const    { return "_"; }
+    };
+
+    stream << "{" << boost::apply_visitor( type(), x.val ) << "|";
     if( x.repeat > 1 ) stream << x.repeat;
 
-    switch( x.type ) {
-        case item::tag::i:   stream << x.ival; break;
-        case item::tag::f:   stream << x.fval; break;
-        case item::tag::str: stream << x.sval; break;
-        default:             stream << "_";
-    }
-
-    return stream << "}";
+    return stream << x.val << "}";
 }
 
 std::vector< section > parse( std::string::const_iterator fst,
