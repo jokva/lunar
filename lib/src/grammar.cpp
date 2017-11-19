@@ -162,41 +162,76 @@ qi::rule< Itr, item() > itemrule< Itr, int, double, std::string > =
 ;
 
 template< typename Itr, typename... T >
-qi::rule< Itr, record(), skipper< Itr > > rec =
+qi::rule< Itr, record(), skipper< Itr > > record_rule =
     *( itemrule< Itr, T... >
      | star< Itr > >> qi::attr( item::none{} )
      | '*' >> qi::attr( item::star( 0 ) ) >> qi::attr( item::none{} )
      )
     >> term();
 
+template< typename Itr, int N, typename... T >
+qi::rule< Itr, std::vector< record >(), skipper< Itr > > rec =
+    qi::repeat(N)[record_rule< Itr, T... >]
+    ;
+
 template< typename Itr >
-struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
-    template< typename T >
-    using rule = qi::rule< Itr, T, skipper< Itr > >;
+struct grammar : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
+    grammar() : grammar::base_type( start ) {
 
-    runspec() : runspec::base_type( start ) {
+        toggle %= qi::attr( empty_records );
 
-        toggles  += "OIL", "WATER", "GAS", "DISGAS", "VAPOIL";
-        toggles  += "METRIC", "FIELD", "LAB", "NOSIM", "UNIFIN", "UNIFOUT";
+        runspec.add
+            ( "OIL",        &toggle )
+            ( "WATER",      &toggle )
+            ( "GAS",        &toggle )
+            ( "DISGAS",     &toggle )
+            ( "VAPOIL",     &toggle )
+            ( "METRIC",     &toggle )
+            ( "FIELD",      &toggle )
+            ( "LAB",        &toggle )
+            ( "NOSIM",      &toggle )
+            ( "UNIFIN",     &toggle )
+            ( "UNIFOUT",    &toggle )
 
-        singlei  += "DIMENS", "EQLDIMS", "REGDIMS", "WELLDIMS";
-        singlei  += "VFPIDIMS", "VFPPDIMS", "FAULTDIM", "PIMTDIMS";
-        singlei  += "NSTACK", "OPTIONS";
+            ( "DIMENS",     &rec< Itr, 1, int > )
+            ( "EQLDIMS",    &rec< Itr, 1, int > )
+            ( "REGDIMS",    &rec< Itr, 1, int > )
+            ( "WELLDIMS",   &rec< Itr, 1, int > )
+            ( "VFPIDIMS",   &rec< Itr, 1, int > )
+            ( "VFPPDIMS",   &rec< Itr, 1, int > )
+            ( "FAULTDIM",   &rec< Itr, 1, int > )
+            ( "PIMTDIMS",   &rec< Itr, 1, int > )
+            ( "NSTACK",     &rec< Itr, 1, int > )
+            ( "OPTIONS",    &rec< Itr, 1, int > )
 
-        singles  += "EQLOPTS", "SATOPTS";
+            ( "EQLOPTS",    &rec< Itr, 1, std::string > )
+            ( "SATOPTS",    &rec< Itr, 1, std::string > )
 
-        singleis += "ENDSCALE", "GRIDOPTS", "START", "TABDIMS";
+            ( "ENDSCALE",   &rec< Itr, 1, int, std::string > )
+            ( "GRIDOPTS",   &rec< Itr, 1, int, std::string > )
+            ( "START",      &rec< Itr, 1, int, std::string > )
+            ( "TABDIMS",    &rec< Itr, 1, int, std::string > )
 
-        single_all += "TRACERS";
+            ( "TRACERS",    &rec< Itr, 1, int, double, std::string > )
+        ;
 
-        start %= qi::string("RUNSPEC") >> *(
-            kword(singlei)      >> rec< Itr, int >
-          | kword(singlef)      >> rec< Itr, double >
-          | kword(singles)      >> rec< Itr, std::string >
-          | kword(singleis)     >> rec< Itr, int, std::string >
-          | kword(single_all)   >> rec< Itr, int, double, std::string >
-          | kword(toggles)  >> qi::attr( empty_records )
-          )
+        grid.add
+            ( "NEWTRAN",    &toggle )
+            ( "GRIDFILE",   &rec< Itr, 1, int > )
+            ( "MAPAXES",    &rec< Itr, 1, double > )
+        ;
+
+        RUNSPEC %= qi::string("RUNSPEC") >>
+            *( kword(runspec[ qi::_a = qi::_1 ]) >> qi::lazy( *qi::_a ) )
+        ;
+
+        GRID %= qi::string("GRID") >>
+            *( kword(grid[ qi::_a = qi::_1 ]) >> qi::lazy( *qi::_a ) )
+        ;
+
+        start %= (RUNSPEC | -RUNSPEC)
+              >> (GRID    | -GRID)
+              >> qi::eoi
         ;
 
         itemrule< Itr >.name( "item" );
@@ -208,50 +243,13 @@ struct runspec : qi::grammar< Itr, section(), skipper< Itr > > {
         itemrule< Itr, int, double, std::string >.name( "item[*]" );
     }
 
-    qi::symbols<> singlei;
-    qi::symbols<> singlef;
-    qi::symbols<> singles;
-    qi::symbols<> singleis;
-    qi::symbols<> single_all;
-    qi::symbols<> toggles;
-    rule< section() > start;
-};
+    using rule = qi::rule< Itr, std::vector< record >(), skipper< Itr > >;
 
-template< typename Itr >
-struct grid : qi::grammar< Itr, section(), skipper< Itr > > {
-    grid() : grid::base_type( start ) {
-
-        toggles += "NEWTRAN";
-
-        singlei += "GRIDFILE";
-
-        singlef += "MAPAXES";
-
-        start %= qi::string("GRID") >> *(
-            kword(singlei)      >> rec< Itr, int >
-          | kword(singlef)      >> rec< Itr, double >
-          | kword(toggles)      >> qi::attr( empty_records )
-          )
-        ;
-    }
-
-    qi::symbols<> toggles;
-    qi::symbols<> singlei;
-    qi::symbols<> singlef;
-    qi::rule< Itr, section(), skipper< Itr > > start;
-};
-
-template< typename Itr >
-struct deckp : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
-    deckp() : deckp::base_type( start ) {
-        start %= (RUNSPEC | -RUNSPEC)
-              >> (GRID    | -GRID)
-              >> qi::eoi
-        ;
-    }
-
-    runspec< Itr > RUNSPEC;
-    grid< Itr > GRID;
+    rule toggle;
+    qi::symbols< char, rule* > runspec;
+    qi::symbols< char, rule* > grid;
+    qi::rule< Itr, section(), skipper< Itr >, qi::locals< rule* > > RUNSPEC;
+    qi::rule< Itr, section(), skipper< Itr >, qi::locals< rule* > > GRID;
     qi::rule< Itr, std::vector< section >(), skipper< Itr > > start;
 };
 
@@ -489,7 +487,7 @@ std::ostream& operator<<( std::ostream& stream, const item& x ) {
 std::vector< section > parse( std::string::const_iterator fst,
                               std::string::const_iterator lst ) {
 
-    using grm = deckp< std::string::const_iterator >;
+    using grm = grammar< std::string::const_iterator >;
 
     grm parser;
     std::vector< section > sec;
