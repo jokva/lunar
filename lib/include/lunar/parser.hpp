@@ -19,24 +19,18 @@ struct item {
     };
 
     struct none {};
+    struct endrecord {};
 
-    boost::variant< int, double, std::string, none > val;
+    boost::variant< int, double, std::string, none, endrecord > val;
     star repeat;
 };
 
-using record = std::vector< item >;
-
 struct keyword {
     std::string name;
-    std::vector< record > xs;
+    std::vector< item > xs;
 };
 
-struct section {
-    std::string name;
-    std::vector< keyword > xs;
-};
-
-std::vector< section > parse( std::string::const_iterator fst,
+std::vector< keyword > parse( std::string::const_iterator fst,
                               std::string::const_iterator lst );
 
 struct inlined {
@@ -47,10 +41,11 @@ struct inlined {
 
 inlined concatenate( const std::string& path );
 
-std::string dot( const std::vector< section >& );
+std::string dot( const std::vector< keyword >& );
 
 std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::none& );
+std::ostream& operator<<( std::ostream&, const item::endrecord& );
 std::ostream& operator<<( std::ostream&, const item& );
 
 }

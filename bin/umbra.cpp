@@ -6,43 +6,57 @@
 
 #include <lunar/parser.hpp>
 
-std::string lun::dot( const std::vector< section >& secs ) {
+struct is_end : boost::static_visitor< bool > {
+    template< typename T >
+    bool operator()( T ) const { return false; }
+    bool operator()( lun::item::endrecord  ) const { return true; }
+};
+
+std::string lun::dot( const std::vector< keyword >& kws ) {
     std::stringstream stream;
 
     stream << "strict graph {" << std::endl;
 
-    for( const auto& sec : secs ) {
+    for( const auto& kw : kws ) {
 
-        stream << sec.name << " -- { ";
-        for( const auto& kw : sec.xs )
-            stream << kw.name << "[shape=box]" << " ";
-        stream << "}" << std::endl;
+        stream << "root -- ";
+        stream << kw.name << "[shape=box]" << "\n";
 
-        for( const auto& kw : sec.xs ) {
+        if( kw.xs.empty() ) continue;
 
-            stream << kw.name << " -- { ";
-            for( size_t i = 0; i < kw.xs.size(); ++i ) {
-                stream << kw.name << "_" << i
-                    << "[shape=diamond]"
-                    << " ";
+        int rec = 0;
+        int it = 0;
+
+        stream << "\t"
+               << kw.name << "_" << rec << "[label=" << rec << "]"
+               << kw.name << " -- "
+               << kw.name << "_" << rec
+               << "\n";
+
+        for( const auto& item : kw.xs ) {
+            if( boost::apply_visitor( is_end(), item.val ) ) {
+                rec += 1;
+                it = 0;
+
+                stream << "\t"
+                       << kw.name << "_" << rec << "[label=" << rec << "]"
+                       << kw.name << " -- "
+                       << kw.name << "_" << rec
+                       << "\n";
+                continue;
             }
-            stream << " }" << std::endl;
 
-            for( size_t i = 0; i < kw.xs.size(); ++i ) {
-                const auto& rec = kw.xs[ i ];
+            stream << "\t\t"
+                   << kw.name << "_" << rec << "_" << it
+                              << "[shape=record, label="
+                              << "\"" << item << "\"" << "]"
+                              << "\n"
+                   << kw.name << "_" << rec << " -- "
+                   << kw.name << "_" << rec << "_" << it
+                              << "\n"
+            ;
 
-                stream << kw.name << "_" << i
-                    << " -- { ";
-                for( size_t j = 0; j < rec.size(); ++j ) {
-                    const auto& item = rec.at( j );
-                    stream << kw.name << "_" << i << "_" << j
-                        << "[shape=record, label="
-                        << "\"" << item << "\"" << "]"
-                        << " ";
-                }
-                stream << " }" << std::endl;
-
-            }
+            it += 1;
         }
 
     }
