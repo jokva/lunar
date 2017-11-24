@@ -27,7 +27,6 @@ namespace qi        = boost::spirit::qi;
 namespace ascii     = boost::spirit::ascii;
 namespace bf        = boost::fusion;
 
-BOOST_FUSION_ADAPT_STRUCT( lun::section, name, xs )
 BOOST_FUSION_ADAPT_STRUCT( lun::keyword, name, xs )
 // NB! reversed member order in the adapted struct, because in the grammar,
 // repeats comes first
@@ -51,8 +50,6 @@ struct skipper : public qi::grammar< Itr > {
 
 template< typename Itr >
 qi::rule< Itr, item::star() > star = qi::int_ >> '*';
-
-static const auto empty_records = std::vector< record > {};
 
 /*
  * keyword lookup through a qi::symbol table is pretty convenient, but that
@@ -121,6 +118,8 @@ qi::real_parser< double, fortran_double< double > > f77float;
 template< typename Itr, typename... >
 qi::rule< Itr, item() > itemrule;
 
+static const item endrec = { item::endrec{} };
+
 /*
  * TODO: optimise backtracking patterns
  */
@@ -162,25 +161,43 @@ qi::rule< Itr, item() > itemrule< Itr, int, double, std::string > =
 ;
 
 template< typename Itr, typename... T >
-qi::rule< Itr, record(), skipper< Itr > > record_rule =
+qi::rule< Itr, std::vector< item >(), skipper< Itr > > record_rule =
     *( itemrule< Itr, T... >
      | star< Itr > >> qi::attr( item::none{} )
      | '*' >> qi::attr( item::star( 0 ) ) >> qi::attr( item::none{} )
      )
-    >> term();
+    >> term() >> qi::attr( endrec );
+
+std::vector< item > flatten( const std::vector< std::vector< item > >& xs ) {
+    auto size = std::accumulate( xs.begin(), xs.end(), 0,
+            []( auto acc, auto& x ) { return x.size() + acc; } );
+
+    std::vector< item > ys;
+    ys.reserve( size );
+    for( const auto& x : xs )
+        ys.insert( ys.end(), x.begin(), x.end() );
+
+    return ys;
+}
 
 template< typename Itr, int N, typename... T >
-qi::rule< Itr, std::vector< record >(), skipper< Itr > > rec =
+qi::rule< Itr, std::vector< item >(), skipper< Itr > > rec =
     qi::repeat(N)[record_rule< Itr, T... >]
+        [ qi::_val = phx::bind( flatten, qi::_1 ) ]
     ;
 
 template< typename Itr >
-struct grammar : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
+struct grammar : qi::grammar< Itr, std::vector< keyword >(), skipper< Itr >,
+        qi::locals< qi::rule< Itr, std::vector< item >(), skipper< Itr > >* >
+    > {
     grammar() : grammar::base_type( start ) {
 
-        toggle %= qi::attr( empty_records );
+        toggle %= qi::eps;
 
-        runspec.add
+        /* RUNSPEC */
+        keyword.add
+            ( "RUNSPEC",    &toggle )
+
             ( "OIL",        &toggle )
             ( "WATER",      &toggle )
             ( "GAS",        &toggle )
@@ -213,25 +230,16 @@ struct grammar : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
             ( "TABDIMS",    &rec< Itr, 1, int, std::string > )
 
             ( "TRACERS",    &rec< Itr, 1, int, double, std::string > )
-        ;
 
-        grid.add
+        /* GRID */
+            ( "GRID",       &toggle )
             ( "NEWTRAN",    &toggle )
             ( "GRIDFILE",   &rec< Itr, 1, int > )
             ( "MAPAXES",    &rec< Itr, 1, double > )
         ;
 
-        RUNSPEC %= qi::string("RUNSPEC") >>
-            *( kword(runspec[ qi::_a = qi::_1 ]) >> qi::lazy( *qi::_a ) )
-        ;
-
-        GRID %= qi::string("GRID") >>
-            *( kword(grid[ qi::_a = qi::_1 ]) >> qi::lazy( *qi::_a ) )
-        ;
-
-        start %= (RUNSPEC | -RUNSPEC)
-              >> (GRID    | -GRID)
-              >> qi::eoi
+        start %= *( kword(keyword[ qi::_a = qi::_1 ]) >> qi::lazy( *qi::_a ))
+            >> qi::eoi
         ;
 
         itemrule< Itr >.name( "item" );
@@ -243,14 +251,11 @@ struct grammar : qi::grammar< Itr, std::vector< section >(), skipper< Itr > > {
         itemrule< Itr, int, double, std::string >.name( "item[*]" );
     }
 
-    using rule = qi::rule< Itr, std::vector< record >(), skipper< Itr > >;
+    using rule = qi::rule< Itr, std::vector< item >(), skipper< Itr > >;
 
     rule toggle;
-    qi::symbols< char, rule* > runspec;
-    qi::symbols< char, rule* > grid;
-    qi::rule< Itr, section(), skipper< Itr >, qi::locals< rule* > > RUNSPEC;
-    qi::rule< Itr, section(), skipper< Itr >, qi::locals< rule* > > GRID;
-    qi::rule< Itr, std::vector< section >(), skipper< Itr > > start;
+    qi::symbols< char, rule* > keyword;
+    qi::rule< Itr, std::vector< lun::keyword >(), skipper< Itr >, qi::locals< rule* > > start;
 };
 
 #ifdef HAVE_BUILTIN_EXPECT
@@ -470,12 +475,17 @@ std::ostream& operator<<( std::ostream& stream, const item::none& ) {
     return stream << "_";
 }
 
+std::ostream& operator<<( std::ostream& stream, const item::endrec& ) {
+    return stream << "/";
+}
+
 std::ostream& operator<<( std::ostream& stream, const item& x ) {
     struct type : boost::static_visitor< const char* > {
-        const char* operator()( int ) const                 { return "int"; }
-        const char* operator()( double ) const              { return "float"; }
-        const char* operator()( const std::string& ) const  { return "str"; }
-        const char* operator()( const item::none ) const    { return "_"; }
+        const char* operator()( int ) const                { return "int"; }
+        const char* operator()( double ) const             { return "float"; }
+        const char* operator()( const std::string& ) const { return "str"; }
+        const char* operator()( const item::none ) const   { return "_"; }
+        const char* operator()( const item::endrec ) const { return "end"; }
     };
 
     stream << "{" << boost::apply_visitor( type(), x.val ) << "|";
@@ -484,13 +494,13 @@ std::ostream& operator<<( std::ostream& stream, const item& x ) {
     return stream << x.val << "}";
 }
 
-std::vector< section > parse( std::string::const_iterator fst,
+std::vector< keyword > parse( std::string::const_iterator fst,
                               std::string::const_iterator lst ) {
 
     using grm = grammar< std::string::const_iterator >;
 
     grm parser;
-    std::vector< section > sec;
+    std::vector< lun::keyword > sec;
 
     auto ok = qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
     if( !ok ) std::cerr << "PARSE FAILED" << std::endl;

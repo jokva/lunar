@@ -40,10 +40,11 @@ class HasKeyword : public Catch::MatcherBase< std::vector< lun::keyword > > {
 };
 
 struct typedescr {
-    std::string operator()( int ) const              { return "int"; }
-    std::string operator()( double ) const           { return "float"; }
-    std::string operator()( std::string ) const      { return "string"; }
-    std::string operator()( lun::item::none ) const  { return "none"; }
+    std::string operator()( int ) const               { return "int"; }
+    std::string operator()( double ) const            { return "float"; }
+    std::string operator()( std::string ) const       { return "string"; }
+    std::string operator()( lun::item::none ) const   { return "none"; }
+    std::string operator()( lun::item::endrec ) const { return "end"; }
 };
 
 template< typename T >
@@ -68,6 +69,9 @@ class IsType : public Catch::MatcherBase< lun::item > {
 auto IsInt()    -> IsType< int >         { return IsType< int >(); }
 auto IsFloat()  -> IsType< double >      { return IsType< double >(); }
 auto IsString() -> IsType< std::string > { return IsType< std::string >(); }
+auto IsEnd ()   -> IsType< lun::item::endrec > {
+    return IsType< lun::item::endrec >();
+}
 
 class Repeats : public Catch::MatcherBase< lun::item > {
     public:
@@ -135,47 +139,43 @@ REGDIMS
 OIL
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() ).front();
-    REQUIRE( sec.name == "RUNSPEC" );
+    auto sec = lun::parse( input.begin(), input.end() );
+    REQUIRE( sec.front().name == "RUNSPEC" );
 
     SECTION( "toggles have no items" ) {
-        CHECK_THAT( sec.xs, HasKeyword( "OIL" ) );
-        const auto& oil = get( "OIL", sec.xs );
+        CHECK_THAT( sec, HasKeyword( "OIL" ) );
+        const auto& oil = get( "OIL", sec );
         CHECK( oil.xs.empty() );
     }
 
     SECTION( "integers are recognised" ) {
-        REQUIRE_THAT( sec.xs, HasKeyword( "DIMENS" ) );
-        const auto& kw = get( "DIMENS", sec.xs );
+        REQUIRE_THAT( sec, HasKeyword( "DIMENS" ) );
+        const auto& kw = get( "DIMENS", sec );
 
-        for( const auto& item : kw.xs ) {
-            REQUIRE( !item.empty() );
-            CHECK_THAT( item[ 0 ], IsInt() );
-        }
+        CHECK_THAT( kw.xs.back(), IsEnd() );
+
+        std::for_each( kw.xs.begin(), kw.xs.end() - 1,
+            []( auto& item ) { CHECK_THAT( item, IsInt() ); } );
     }
 
     SECTION( "/ following int does not change the value" ) {
-        REQUIRE_THAT( sec.xs, HasKeyword( "EQLDIMS" ) );
-        const auto& eqldims = get( "EQLDIMS", sec.xs );
-        REQUIRE( !eqldims.xs.empty() );
-        REQUIRE( eqldims.xs[ 0 ].size() == 1 );
+        REQUIRE_THAT( sec, HasKeyword( "EQLDIMS" ) );
+        const auto& eqldims = get( "EQLDIMS", sec ).xs;
+        REQUIRE( eqldims.size() == 2 );
 
-        const auto& rec = eqldims.xs[ 0 ];
-        REQUIRE( !rec.empty() );
-        REQUIRE_THAT( rec[ 0 ], IsInt() );
-        CHECK( rec[ 0 ] == 2 );
+        const auto& x = eqldims.front();
+        CHECK_THAT( x, IsInt() );
+        CHECK( x == 2 );
     }
 
     SECTION( "/ on new line does not change the value" ) {
-        REQUIRE_THAT( sec.xs, HasKeyword( "REGDIMS" ) );
-        const auto& kw = get( "REGDIMS", sec.xs );
-        REQUIRE( !kw.xs.empty() );
-        REQUIRE( kw.xs[ 0 ].size() == 1 );
+        REQUIRE_THAT( sec, HasKeyword( "REGDIMS" ) );
+        const auto& kw = get( "REGDIMS", sec ).xs;
+        REQUIRE( kw.size() == 2 );
 
-        auto& rec = kw.xs[ 0 ];
-        REQUIRE( !rec.empty() );
-        REQUIRE_THAT( rec[ 0 ], IsInt() );
-        CHECK( rec[ 0 ] == 10 );
+        auto& x = kw.front();
+        CHECK_THAT( x, IsInt() );
+        CHECK( x == 10 );
     }
 }
 
@@ -191,37 +191,35 @@ DIMENS
 
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() ).front();
-    REQUIRE( sec.name == "RUNSPEC" );
+    auto sec = lun::parse( input.begin(), input.end() );
+    REQUIRE( sec.front().name == "RUNSPEC" );
 
     SECTION( "a single int" ) {
-        REQUIRE_THAT( sec.xs, HasKeyword( "EQLDIMS" ) );
+        REQUIRE_THAT( sec, HasKeyword( "EQLDIMS" ) );
 
-        const auto& kw = get( "EQLDIMS", sec.xs );
-        REQUIRE( kw.xs.size() == 1 );
-        REQUIRE( kw.xs[ 0 ].size() == 1 );
+        const auto& kw = get( "EQLDIMS", sec ).xs;
+        REQUIRE( kw.size() == 2 );
 
-        const auto& x = kw.xs[ 0 ][ 0 ];
+        const auto& x = kw.front();
         CHECK_THAT( x, Repeats( 3 ) );
-        REQUIRE_THAT( x, IsInt() );
+        CHECK_THAT( x, IsInt() );
         CHECK( x == 5 );
     }
 
     SECTION( "int, repeated int" ) {
-        REQUIRE_THAT( sec.xs, HasKeyword( "DIMENS" ) );
+        REQUIRE_THAT( sec, HasKeyword( "DIMENS" ) );
 
-        const auto& kw = get( "DIMENS", sec.xs );
-        REQUIRE( kw.xs.size() == 1 );
-        REQUIRE( kw.xs[ 0 ].size() == 2 );
+        const auto& kw = get( "DIMENS", sec ).xs;
+        REQUIRE( kw.size() == 3 );
 
         SECTION( "the single integer" ) {
-            const auto& x = kw.xs[ 0 ][ 0 ];
+            const auto& x = kw.at( 0 );
             REQUIRE_THAT( x, IsInt() );
             CHECK( x == 5 );
         }
 
         SECTION( "the repeated integer" ) {
-            const auto& x = kw.xs[ 0 ][ 1 ];
+            const auto& x = kw.at( 1 );
             REQUIRE_THAT( x, IsInt() );
             CHECK_THAT( x, Repeats( 2 ) );
             CHECK( x == 10 );
@@ -267,37 +265,31 @@ MAPAXES
 /
 
 )";
-    auto sec = lun::parse( input.begin(), input.end() ).front();
-    REQUIRE( sec.name == "GRID" );
-    REQUIRE( sec.xs.size() == 7 );
-
-    for( const auto& kw : sec.xs )
-        CHECK( kw.name == "MAPAXES" );
-
-    for( const auto& kw : sec.xs )
-        REQUIRE( kw.xs.size() == 1 );
+    auto sec = lun::parse( input.begin(), input.end() );
+    REQUIRE( sec.front().name == "GRID" );
+    REQUIRE( sec.size() == 8 );
 
     SECTION( "repeating floats" ) {
-        const auto& kw = sec.xs[ 0 ];
-        const auto& rec = kw.xs.front();
-        REQUIRE( rec.size() == 3 );
+        const auto& kw = sec.at( 1 ).xs;
+
+        REQUIRE( kw.size() == 4 );
 
         SECTION( "3*100." ) {
-            const auto& item = rec[ 0 ];
+            const auto& item = kw[ 0 ];
             CHECK_THAT( item, Repeats( 3 ) );
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 100 ) );
         }
 
         SECTION( "2*13.1" ) {
-            const auto& item = rec[ 1 ];
+            const auto& item = kw[ 1 ];
             CHECK_THAT( item, Repeats( 2 ) );
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 13.1 ) );
         }
 
         SECTION( "4*.3" ) {
-            const auto& item = rec[ 2 ];
+            const auto& item = kw[ 2 ];
             CHECK_THAT( item, Repeats( 4 ) );
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( .3 ) );
@@ -305,82 +297,85 @@ MAPAXES
     }
 
     SECTION( "mix repeated and non-repeated" ) {
-        const auto& kw = sec.xs[ 1 ];
-        const auto& rec = kw.xs.front();
-        REQUIRE( rec.size() == 5 );
+        const auto& kw = sec.at( 2 ).xs;
+
+        REQUIRE( kw.size() == 6 );
 
         SECTION( "1.2" ) {
-            const auto& item = rec[ 0 ];
+            const auto& item = kw[ 0 ];
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 1.2 ) );
         }
 
         SECTION( "2*2.4" ) {
-            const auto& item = rec[ 1 ];
+            const auto& item = kw[ 1 ];
             CHECK_THAT( item, Repeats( 2 ) );
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 2.4 ) );
         }
 
         SECTION( ".8" ) {
-            const auto& item = rec[ 2 ];
+            const auto& item = kw[ 2 ];
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 0.8 ) );
         }
 
         SECTION( "8.0" ) {
-            const auto& item = rec[ 3 ];
+            const auto& item = kw[ 3 ];
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 8 ) );
         }
 
         SECTION( "8." ) {
-            const auto& item = rec[ 4 ];
+            const auto& item = kw[ 4 ];
             CHECK_THAT( item, IsFloat() );
             CHECK( item == Approx( 8 ) );
         }
     }
 
     SECTION( "can be written without exponent" ) {
-        for( const auto& x : sec.xs[ 2 ].xs.front() ) {
+        const auto& xs = sec.at( 3 ).xs;
+        std::for_each( xs.begin(), xs.end() - 1, []( auto& x ) {
             REQUIRE_THAT( x, IsFloat() );
             CHECK( x == Approx( 0.5 ) );
-        }
+            } );
     }
 
     SECTION( "can be negative" ) {
-        for( const auto& x : sec.xs[ 3 ].xs.front() ) {
+        const auto& xs = sec.at( 4 ).xs;
+        std::for_each( xs.begin(), xs.end() - 1, []( auto& x ) {
             REQUIRE_THAT( x, IsFloat() );
             CHECK( x == Approx( -0.5 ) );
-        }
+        } );
     }
 
     SECTION( "can be written in exponential notation" ) {
-        for( const auto& x : sec.xs[ 4 ].xs.front() ) {
+        const auto& xs = sec.at( 5 ).xs;
+        std::for_each( xs.begin(), xs.end() - 1, []( auto& x ) {
             REQUIRE_THAT( x, IsFloat() );
             CHECK( x == Approx( 50 ) );
-        }
+        } );
     }
 
     SECTION( "can be negative with exponential notation" ) {
-        for( const auto& x : sec.xs[ 5 ].xs.front() ) {
+        const auto& xs = sec.at( 6 ).xs;
+        std::for_each( xs.begin(), xs.end() - 1, []( auto& x ) {
             REQUIRE_THAT( x, IsFloat() );
             CHECK( x == Approx( -50 ) );
-        }
+        } );
     }
 
     SECTION( "can have negative exponent" ) {
-        for( const auto& x : sec.xs[ 6 ].xs.front() ) {
+        const auto& xs = sec.at( 7 ).xs;
+        std::for_each( xs.begin(), xs.end() - 1, []( auto& x ) {
             REQUIRE_THAT( x, IsFloat() );
             CHECK( x == Approx( 0.005 ) );
-        }
+        } );
     }
 }
 
 TEST_CASE( "simple strings", "[string]") {
     const std::string input = R"(
-RUNSPEC
-
 GRIDOPTS
     'YES' /
 
@@ -397,44 +392,43 @@ GRIDOPTS
     YES/
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() ).front();
-    REQUIRE( sec.name == "RUNSPEC" );
-    REQUIRE( sec.xs.size() == 5 );
+    auto sec = lun::parse( input.begin(), input.end() );
+    REQUIRE( sec.size() == 5 );
 
-    for( const auto& kw : sec.xs )
+    for( const auto& kw : sec )
         CHECK( kw.name == "GRIDOPTS" );
 
-    for( const auto& kw : sec.xs )
-        REQUIRE( kw.xs.front().size() == 1 );
+    for( const auto& kw : sec )
+        REQUIRE( kw.xs.size() == 2 );
 
     SECTION( "can be quoted" ) {
-        const auto& x = sec.xs[ 0 ].xs.front().front();
+        const auto& x = sec.at( 0 ).xs.front();
         REQUIRE_THAT( x, IsString() );
         CHECK( x == "YES" );
     }
 
     SECTION( "can omit quotes" ) {
-        const auto& x = sec.xs[ 1 ].xs.front().front();
+        const auto& x = sec.at( 1 ).xs.front();
         REQUIRE_THAT( x, IsString() );
         CHECK( x == "YES" );
     }
 
     SECTION( "can be repeated with quotes" ) {
-        const auto& x = sec.xs[ 2 ].xs.front().front();
+        const auto& x = sec.at( 2 ).xs.front();
         REQUIRE_THAT( x, IsString() );
         CHECK_THAT( x, Repeats( 2 ) );
         CHECK( x == "YES" );
     }
 
     SECTION( "can be repeated without quotes" ) {
-        const auto& x = sec.xs[ 3 ].xs.front().front();
+        const auto& x = sec.at( 3 ).xs.front();
         REQUIRE_THAT( x, IsString() );
         CHECK_THAT( x, Repeats( 2 ) );
         CHECK( x == "YES" );
     }
 
     SECTION( "stops at slash without whitespace" ) {
-        const auto& x = sec.xs[ 4 ].xs.front().front();
+        const auto& x = sec.at( 4 ).xs.front();
         REQUIRE_THAT( x, IsString() );
         CHECK( x == "YES" );
     }
