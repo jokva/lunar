@@ -38,6 +38,9 @@ struct inlined {
     std::vector< std::string > included;
 };
 
+auto INCLUDE( const char*& fst, const char* lst ) -> std::string;
+auto PATHS( const char*& fst, const char* lst ) ->
+    std::vector< std::pair< std::string, std::string > >;
 
 inlined concatenate( const std::string& path );
 

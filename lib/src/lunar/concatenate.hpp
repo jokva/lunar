@@ -9,6 +9,8 @@
 
 namespace lun {
 
+namespace {
+
 class pathresolver {
 
 public:
@@ -70,6 +72,8 @@ public:
 private:
     std::vector< kv > aliases;
 };
+
+}
 
 }
 

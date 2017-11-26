@@ -1,6 +1,7 @@
 project(lunar-lib CXX)
 
-add_library(lunar-grammar src/grammar.cpp)
+add_library(lunar-grammar src/grammar.cpp
+                          src/concatenate.cpp)
 target_link_libraries(lunar-grammar Boost::boost
                                     Boost::iostreams
                                     path)
