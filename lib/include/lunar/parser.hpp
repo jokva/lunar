@@ -30,8 +30,8 @@ struct keyword {
     std::vector< item > xs;
 };
 
-std::vector< keyword > parse( std::string::const_iterator fst,
-                              std::string::const_iterator lst );
+std::vector< keyword > parse( const std::string& );
+std::vector< keyword > parse( const char* fst, const char* lst );
 
 struct inlined {
     std::vector< char > inlined;

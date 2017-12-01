@@ -139,7 +139,7 @@ REGDIMS
 OIL
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() );
+    auto sec = lun::parse( input );
     REQUIRE( sec.front().name == "RUNSPEC" );
 
     SECTION( "toggles have no items" ) {
@@ -191,7 +191,7 @@ DIMENS
 
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() );
+    auto sec = lun::parse( input );
     REQUIRE( sec.front().name == "RUNSPEC" );
 
     SECTION( "a single int" ) {
@@ -265,7 +265,7 @@ MAPAXES
 /
 
 )";
-    auto sec = lun::parse( input.begin(), input.end() );
+    auto sec = lun::parse( input );
     REQUIRE( sec.front().name == "GRID" );
     REQUIRE( sec.size() == 8 );
 
@@ -392,7 +392,7 @@ GRIDOPTS
     YES/
 )";
 
-    auto sec = lun::parse( input.begin(), input.end() );
+    auto sec = lun::parse( input );
     REQUIRE( sec.size() == 5 );
 
     for( const auto& kw : sec )

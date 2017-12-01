@@ -72,9 +72,7 @@ int main( int , char** argv ) {
     std::string input{ std::istreambuf_iterator< char >( fs ),
                        std::istreambuf_iterator< char >() };
 
-    auto begin = input.cbegin();
-    auto end   = input.cend();
-    auto sec = lun::parse( begin, end );
+    auto sec = lun::parse( input );
 
     std::cout << lun::dot( sec ) << std::endl;
 }

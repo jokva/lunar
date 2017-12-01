@@ -312,10 +312,9 @@ std::ostream& operator<<( std::ostream& stream, const item& x ) {
     return stream << x.val << "}";
 }
 
-std::vector< keyword > parse( std::string::const_iterator fst,
-                              std::string::const_iterator lst ) {
+std::vector< keyword > parse( const char* fst, const char* lst ) {
 
-    using grm = grammar< std::string::const_iterator >;
+    using grm = grammar< const char* >;
 
     grm parser;
     std::vector< lun::keyword > sec;
@@ -323,6 +322,10 @@ std::vector< keyword > parse( std::string::const_iterator fst,
     auto ok = qi::phrase_parse( fst, lst, parser, skipper< decltype( fst ) >(), sec );
     if( !ok ) std::cerr << "PARSE FAILED" << std::endl;
     return sec;
+}
+
+std::vector< keyword > parse( const std::string& input ) {
+    return parse( input.c_str(), input.c_str() + input.size() );
 }
 
 }
