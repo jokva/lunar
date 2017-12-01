@@ -42,7 +42,7 @@ DIMENS
 
         WHEN( "a cursor is constructed" ) {
             THEN( "the keyword matches the first in the deck" ) {
-                CHECK( luncur_kwname( cur ) == "RUNSPEC"s );
+                CHECK( luncur_kwname( cur )  == "RUNSPEC"s );
                 CHECK( luncur_records( cur ) == 0 );
             }
         }
@@ -57,8 +57,51 @@ DIMENS
                 CHECK( luncur_kwname( cur ) == "RUNSPEC"s );
             }
 
-            THEN( "the numbers of records match " ) {
+            THEN( "the numbers of records match" ) {
                 CHECK( luncur_records( cpy ) == luncur_records( cur ) );
+            }
+        }
+
+        WHEN( "a copy is advanced" ) {
+            cursor cpyptr( luncur_copy( cur ) );
+            REQUIRE( cpyptr );
+            auto* cpy = cpyptr.get();
+
+            auto ok = luncur_next( cpy, LUN_KW );
+            REQUIRE( ok == LUN_OK );
+
+            THEN( "the keyword is different" ) {
+                CHECK( luncur_kwname( cpy )  == "EQLDIMS"s );
+                CHECK( luncur_records( cpy ) == 1 );
+            }
+
+            THEN( "the original is unchanged" ) {
+                CHECK( luncur_kwname( cur )  == "RUNSPEC"s );
+                CHECK( luncur_records( cur ) == 0 );
+            }
+        }
+
+        WHEN( "a single-item record is traversed per-item" ) {
+            cursor cpyptr( luncur_copy( cur ) );
+            REQUIRE( cpyptr );
+            auto* cpy = cpyptr.get();
+
+            auto ok = luncur_next( cpy, LUN_KW );
+            REQUIRE( ok == LUN_OK );
+
+            THEN( "advancing the record cursor fails" ) {
+                auto adv = luncur_next( cpy, LUN_REC );
+                CHECK( adv == LUN_OUT_OF_RANGE );
+            }
+
+            THEN( "advancing the item cursor fails" ) {
+                auto adv = luncur_next( cpy, LUN_ITEM );
+                CHECK( adv == LUN_OUT_OF_RANGE );
+            }
+
+            THEN( "advancing the keyword cursor succeeds" ) {
+                auto adv = luncur_next( cpy, LUN_KW );
+                CHECK( adv == LUN_OK );
             }
         }
     }
