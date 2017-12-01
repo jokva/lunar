@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <memory>
 
 #include <lunar/ast.h>
@@ -21,6 +22,7 @@ void lun_ast_dispose( const lun_ast ast ) {
 
 struct luncursor {
     lun_ast ast;
+    size_t pos = 0;
 };
 
 lun_cursor luncur_make( const lun_ast ast ) {
@@ -35,4 +37,28 @@ lun_cursor luncur_copy( const lun_cursor cur ) {
 
 void luncur_dispose( const lun_cursor cur ) {
     delete cur;
+}
+
+const char* luncur_kwname( const lun_cursor cur ) {
+    return cur->ast->keywords.at( cur->pos ).name.c_str();
+}
+
+namespace {
+struct endvisit : boost::static_visitor< bool > {
+    template< typename T >
+    bool operator()( T )                  const { return false; }
+    bool operator()( const std::string& ) const { return false; }
+    bool operator()( lun::item::endrec )  const { return true; }
+};
+}
+
+int luncur_records( const lun_cursor cur ) {
+    const auto& items = cur->ast->keywords.at( cur->pos ).xs;
+    if( items.empty() ) return 0;
+
+    auto is_end = []( const auto& x ) {
+        return boost::apply_visitor( endvisit(), x.val );
+    };
+
+    std::count_if( items.begin(), items.end(), is_end );
 }

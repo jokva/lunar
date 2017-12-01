@@ -1,6 +1,10 @@
+#include <string>
+
 #include <catch/catch.hpp>
 
 #include <lunar/ast.h>
+
+using namespace std::string_literals;
 
 namespace {
 
@@ -33,12 +37,28 @@ DIMENS
         const auto end = input.c_str() + input.size();
         AST ast( lun_parse_string( begin, end ) );
 
-        WHEN( "a cursor is constructed" ) {
-            cursor cur( luncur_make( ast.get() ) );
+        cursor curptr( luncur_make( ast.get() ) );
+        auto* cur = curptr.get();
 
-            THEN( "it can be copied" ) {
-                cursor cpy( luncur_copy( cur.get() ) );
-                CHECK( cpy );
+        WHEN( "a cursor is constructed" ) {
+            THEN( "the keyword matches the first in the deck" ) {
+                CHECK( luncur_kwname( cur ) == "RUNSPEC"s );
+                CHECK( luncur_records( cur ) == 0 );
+            }
+        }
+
+        WHEN( "a cursor is copied" ) {
+            cursor cpyptr( luncur_copy( cur ) );
+            REQUIRE( cpyptr );
+            auto* cpy = cpyptr.get();
+
+            THEN( "the keyword names match" ) {
+                CHECK( luncur_kwname( cpy ) == "RUNSPEC"s );
+                CHECK( luncur_kwname( cur ) == "RUNSPEC"s );
+            }
+
+            THEN( "the numbers of records match " ) {
+                CHECK( luncur_records( cpy ) == luncur_records( cur ) );
             }
         }
     }
