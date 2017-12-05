@@ -42,7 +42,7 @@ DIMENS
 
         WHEN( "a cursor is constructed" ) {
             THEN( "the keyword matches the first in the deck" ) {
-                CHECK( luncur_kwname( cur )  == "RUNSPEC"s );
+                CHECK( luncur_id( cur )  == "RUNSPEC"s );
                 CHECK( luncur_records( cur ) == 0 );
             }
         }
@@ -53,8 +53,8 @@ DIMENS
             auto* cpy = cpyptr.get();
 
             THEN( "the keyword names match" ) {
-                CHECK( luncur_kwname( cpy ) == "RUNSPEC"s );
-                CHECK( luncur_kwname( cur ) == "RUNSPEC"s );
+                CHECK( luncur_id( cpy ) == "RUNSPEC"s );
+                CHECK( luncur_id( cur ) == "RUNSPEC"s );
             }
 
             THEN( "the numbers of records match" ) {
@@ -71,12 +71,12 @@ DIMENS
             REQUIRE( ok == LUN_OK );
 
             THEN( "the keyword is different" ) {
-                CHECK( luncur_kwname( cpy )  == "EQLDIMS"s );
+                CHECK( luncur_id( cpy )  == "EQLDIMS"s );
                 CHECK( luncur_records( cpy ) == 1 );
             }
 
             THEN( "the original is unchanged" ) {
-                CHECK( luncur_kwname( cur )  == "RUNSPEC"s );
+                CHECK( luncur_id( cur )  == "RUNSPEC"s );
                 CHECK( luncur_records( cur ) == 0 );
             }
         }

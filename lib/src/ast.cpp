@@ -44,7 +44,7 @@ void luncur_dispose( const lun_cursor cur ) {
     delete cur;
 }
 
-const char* luncur_kwname( const lun_cursor cur ) {
+const char* luncur_id( const lun_cursor cur ) {
     return cur->ast->keywords.at( cur->pos.kw ).name.c_str();
 }
 
@@ -66,7 +66,7 @@ int luncur_records( const lun_cursor cur ) {
     const auto& items = cur->ast->keywords.at( cur->pos.kw ).xs;
     if( items.empty() ) return 0;
 
-    std::count_if( items.begin(), items.end(), is_end );
+    return std::count_if( items.begin(), items.end(), is_end );
 }
 
 namespace {

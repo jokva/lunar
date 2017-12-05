@@ -22,7 +22,7 @@ lun_cursor luncur_make( const lun_ast );
 lun_cursor luncur_copy( const lun_cursor );
 void luncur_dispose( const lun_cursor );
 
-const char* luncur_kwname( const lun_cursor );
+const char* luncur_id( const lun_cursor );
 int luncur_records( const lun_cursor );
 
 /*
