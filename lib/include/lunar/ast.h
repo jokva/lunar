@@ -40,6 +40,15 @@ int luncur_advance( lun_cursor, int type, int steps );
 int luncur_next( lun_cursor, int type );
 int luncur_prev( lun_cursor, int type );
 
+enum lun_item_type {
+    LUN_AST_INT,
+    LUN_AST_FLOAT,
+    LUN_AST_STRING,
+    LUN_AST_NONE
+};
+int luncur_getrepeats( const lun_cursor );
+int luncur_gettype( const lun_cursor );
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

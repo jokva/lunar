@@ -44,6 +44,8 @@ DIMENS
             THEN( "the keyword matches the first in the deck" ) {
                 CHECK( luncur_id( cur )  == "RUNSPEC"s );
                 CHECK( luncur_records( cur ) == 0 );
+                CHECK( luncur_getrepeats( cur ) == -1 );
+                CHECK( luncur_gettype( cur ) == -1 );
             }
         }
 
@@ -73,11 +75,15 @@ DIMENS
             THEN( "the keyword is different" ) {
                 CHECK( luncur_id( cpy )  == "EQLDIMS"s );
                 CHECK( luncur_records( cpy ) == 1 );
+                CHECK( luncur_getrepeats( cpy ) == 3 );
+                CHECK( luncur_gettype( cpy ) == LUN_AST_INT );
             }
 
             THEN( "the original is unchanged" ) {
                 CHECK( luncur_id( cur )  == "RUNSPEC"s );
                 CHECK( luncur_records( cur ) == 0 );
+                CHECK( luncur_getrepeats( cur ) == -1 );
+                CHECK( luncur_gettype( cur ) == -1 );
             }
         }
 
@@ -102,6 +108,33 @@ DIMENS
             THEN( "advancing the keyword cursor succeeds" ) {
                 auto adv = luncur_next( cpy, LUN_KW );
                 CHECK( adv == LUN_OK );
+            }
+        }
+
+        WHEN( "a multi-item record is traversed per-item" ) {
+            cursor cpyptr( luncur_copy( cur ) );
+            REQUIRE( cpyptr );
+            auto* cpy = cpyptr.get();
+
+            auto ok = luncur_advance( cpy, LUN_KW, 2 );
+            REQUIRE( ok == LUN_OK );
+            REQUIRE( luncur_id( cpy ) == "DIMENS"s );
+
+            THEN( "advancing the record cursor fails" ) {
+                auto adv = luncur_next( cpy, LUN_REC );
+                CHECK( adv == LUN_OUT_OF_RANGE );
+            }
+
+            THEN( "the repeat and type are correct" ) {
+                CHECK( luncur_getrepeats( cpy ) == 0 );
+                CHECK( luncur_gettype( cpy ) == LUN_AST_INT );
+            }
+
+            THEN( "advancing the item cursor succeeds" ) {
+                auto adv = luncur_next( cpy, LUN_ITEM );
+                CHECK( adv == LUN_OK );
+                CHECK( luncur_getrepeats( cpy ) == 2 );
+                CHECK( luncur_gettype( cpy ) == LUN_AST_INT );
             }
         }
     }

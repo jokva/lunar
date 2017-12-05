@@ -156,3 +156,22 @@ int luncur_next( lun_cursor cur, int type ) {
 int luncur_prev( lun_cursor cur, int type ) {
     return luncur_advance( cur, type, -1 );
 }
+
+int luncur_getrepeats( const lun_cursor cur ) {
+    const auto& items = cur->ast->keywords.at( cur->pos.kw ).xs;
+    if( items.empty() ) return -1;
+    return items.at( cur->pos.item ).repeat;
+}
+
+int luncur_gettype( const lun_cursor cur ) {
+    const auto& items = cur->ast->keywords.at( cur->pos.kw ).xs;
+    if( items.empty() ) return -1;
+
+    switch( items.at( cur->pos.item ).val.which() ) {
+        case 0: return LUN_AST_INT;
+        case 1: return LUN_AST_FLOAT;
+        case 2: return LUN_AST_STRING;
+        case 3: return LUN_AST_NONE;
+        default: return -2; /* BUG */
+    }
+}
