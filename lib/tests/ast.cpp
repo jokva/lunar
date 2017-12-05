@@ -29,7 +29,7 @@ EQLDIMS
     3*5 /
 
 DIMENS
-5 2*10 /
+    5 2*10 /
 )";
 
     GIVEN( "a valid, incomplete deck" ) {
