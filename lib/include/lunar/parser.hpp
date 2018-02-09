@@ -44,8 +44,6 @@ auto PATHS( const char*& fst, const char* lst ) ->
 
 inlined concatenate( const std::string& path );
 
-std::string dot( const std::vector< keyword >& );
-
 std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::none& );
 std::ostream& operator<<( std::ostream&, const item::endrec& );

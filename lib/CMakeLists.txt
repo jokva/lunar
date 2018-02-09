@@ -1,7 +1,9 @@
 project(lunar-lib CXX)
 
 add_library(lunar-grammar src/grammar.cpp
-                          src/concatenate.cpp)
+                          src/concatenate.cpp
+                          src/ast.cpp
+)
 target_link_libraries(lunar-grammar Boost::boost
                                     Boost::iostreams
                                     path)
@@ -25,6 +27,7 @@ file(COPY decks/ DESTINATION decks)
 add_executable(testsuite tests/testsuite.cpp
                          tests/basic-rules.cpp
                          tests/include.cpp
+                         tests/ast.cpp
 )
 
 target_link_libraries(testsuite lunar-grammar catch2)

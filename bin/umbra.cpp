@@ -4,66 +4,51 @@
 #include <streambuf>
 #include <string>
 
-#include <lunar/parser.hpp>
+#include <lunar/ast.hpp>
 
-struct is_end : boost::static_visitor< bool > {
-    template< typename T >
-    bool operator()( T ) const { return false; }
-    bool operator()( lun::item::endrec ) const { return true; }
-};
+namespace {
 
-std::string lun::dot( const std::vector< keyword >& kws ) {
-    std::stringstream stream;
+std::ostream& dot( std::ostream& stream, lun::ast::cur cursor ) {
+    using namespace lun;
+    using nt = lun::ast::nodetype;
 
     stream << "strict graph {" << std::endl;
 
-    for( const auto& kw : kws ) {
-
+    do {
         stream << "root -- ";
-        stream << kw.name << "[shape=box]" << "\n";
+        stream << cursor.name() << "[shape=box]\n";
 
-        if( kw.xs.empty() ) continue;
+        if( cursor.records() == 0 )
+            continue;
 
         int rec = 0;
         int it = 0;
-
-        stream << "\t"
-               << kw.name << "_" << rec << "[label=" << rec << "]"
-               << kw.name << " -- "
-               << kw.name << "_" << rec
-               << "\n";
-
-        for( const auto& item : kw.xs ) {
-            if( boost::apply_visitor( is_end(), item.val ) ) {
-                rec += 1;
-                it = 0;
-
+        do {
+            if( it == 0 )
                 stream << "\t"
-                       << kw.name << "_" << rec << "[label=" << rec << "]"
-                       << kw.name << " -- "
-                       << kw.name << "_" << rec
-                       << "\n";
-                continue;
-            }
+                        << cursor.name() << "_" << rec << "[label=" << rec << "]"
+                        << cursor.name() << " -- "
+                        << cursor.name() << "_" << rec
+                        << "\n";
 
             stream << "\t\t"
-                   << kw.name << "_" << rec << "_" << it
-                              << "[shape=record, label="
-                              << "\"" << item << "\"" << "]"
-                              << "\n"
-                   << kw.name << "_" << rec << " -- "
-                   << kw.name << "_" << rec << "_" << it
-                              << "\n"
-            ;
+                   << cursor.name() << "_" << rec << "_" << it
+                                  << "[shape=record, label="
+                                  << "\""  << cursor << "\"" << "]"
+                                  << "\n"
+                   << cursor.name() << "_" << rec << " -- "
+                   << cursor.name() << "_" << rec << "_" << it
+                   << "\n" ;
 
-            it += 1;
-        }
+            ++it;
+        } while( cursor.next( nt::item ) or
+                (cursor.next( nt::rec ) and ((it = 0) or ++rec)) );
 
-    }
+    } while( cursor.next( nt::kw ) );
 
-    stream << "}";
+    return stream << "}";
+}
 
-    return stream.str();
 }
 
 int main( int , char** argv ) {
@@ -72,9 +57,6 @@ int main( int , char** argv ) {
     std::string input{ std::istreambuf_iterator< char >( fs ),
                        std::istreambuf_iterator< char >() };
 
-    auto begin = input.cbegin();
-    auto end   = input.cend();
-    auto sec = lun::parse( begin, end );
-
-    std::cout << lun::dot( sec ) << std::endl;
+    auto ast = lun::parse( input );
+    dot( std::cout, ast.cursor() ) << std::endl;
 }
