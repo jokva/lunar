@@ -51,7 +51,7 @@ struct endvisit : boost::static_visitor< bool > {
 
 bool is_end( const item& x ) {
     return boost::apply_visitor( endvisit(), x.val );
-};
+}
 
 }
 
@@ -120,8 +120,10 @@ bool ast::cur::advance( ast::nodetype nt, int steps ) {
         case nodetype::kw:   return keyword( *this );
         case nodetype::rec:  return record( *this );
         case nodetype::item: return item( *this );
+        default:
+            throw std::runtime_error( "Unknown node type tag" );
     }
-};
+}
 
 bool ast::cur::next( ast::nodetype nt ) {
     return this->advance( nt, 1 );
@@ -132,7 +134,7 @@ bool ast::cur::prev( ast::nodetype nt ) {
 }
 
 const std::string& ast::cur::name() const {
-    this->p->at( this->kw ).name;
+    return this->p->at( this->kw ).name;
 }
 
 int ast::cur::records() const {
