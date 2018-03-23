@@ -7,10 +7,12 @@
 #define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #define BOOST_SPIRIT_DEBUG 1
 
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/fusion/include/adapt_struct_named.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/support_line_pos_iterator.hpp>
 
 #include <filesystem/path.h>
 
@@ -310,6 +312,86 @@ std::ostream& operator<<( std::ostream& stream, const item& x ) {
     if( x.repeat > 1 ) stream << x.repeat;
 
     return stream << x.val << "}";
+}
+
+namespace {
+
+template< typename Itr >
+struct G : qi::grammar< Itr, decltype( std::declval< lun::item >().val ), skipper< Itr > > {
+    G() : G::base_type( start ) {
+
+        start %=   f77float
+                 | qi::int_
+                 | str< Itr >
+                 | '*' >> qi::attr( item::none() )
+                 | '/' >> qi::attr( item::endrec() )
+        ;
+    }
+
+    qi::rule< Itr, decltype( std::declval< lun::item >().val ), skipper< Itr > > start;
+};
+
+template< typename Itr >
+report& tokenize( report& r, Itr cur, Itr end ) {
+
+    skipper< Itr > skip;
+    int fileid = r.filename.size() - 1;
+
+    G< Itr > grm;
+    while( true ) {
+        if( cur == end ) return r;
+
+        lun::item x;
+        auto success = qi::phrase_parse( cur, end,
+            qi::lexeme[qi::int_ >> '*'],
+            skip,
+            x.repeat
+        );
+
+        success = qi::phrase_parse( cur, end,
+                                    grm,
+                                    skip,
+                                    x.val );
+
+        x.lineno = cur.position();
+        x.fileid = fileid;
+
+        if( success ) r.tokens.push_back( x );
+    }
+}
+
+report& tokenize( report& r, const std::string& file ) {
+    using fstream = boost::iostreams::mapped_file_source;
+    using streamitr = decltype( std::declval< fstream >().begin() );
+    using itr = spirit::line_pos_iterator< streamitr >;
+
+    fstream fs( file );
+    r.filename.push_back( file );
+
+    itr cur( fs.begin() );
+    itr end( fs.end() );
+
+    return tokenize( r, cur, end );
+}
+
+}
+
+report tokenize( const std::string& file ) {
+    report r;
+    return tokenize( r, file );
+}
+
+report tokenize( std::string::const_iterator fst,
+                 std::string::const_iterator lst ) {
+    using itr = spirit::line_pos_iterator< decltype( fst ) >;
+
+    report r;
+    r.filename.push_back( "" );
+
+    itr cur( fst );
+    itr end( lst );
+
+    return tokenize( r, cur, end );
 }
 
 std::vector< keyword > parse( std::string::const_iterator fst,

@@ -22,7 +22,9 @@ struct item {
     struct endrec {};
 
     boost::variant< int, double, std::string, none, endrec > val;
-    star repeat;
+    star repeat = 0;
+    int lineno = -1;
+    int fileid = -1;
 };
 
 struct keyword {
@@ -48,6 +50,15 @@ std::ostream& operator<<( std::ostream&, const item::star& );
 std::ostream& operator<<( std::ostream&, const item::none& );
 std::ostream& operator<<( std::ostream&, const item::endrec& );
 std::ostream& operator<<( std::ostream&, const item& );
+
+struct report {
+    std::vector< lun::item > tokens;
+    std::vector< std::string > filename;
+};
+
+report tokenize( const std::string& file );
+report tokenize( std::string::const_iterator fst,
+                 std::string::const_iterator lst );
 
 }
 

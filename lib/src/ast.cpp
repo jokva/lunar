@@ -9,19 +9,19 @@ namespace lun {
 
 struct ast::impl {
     impl() = default;
-    explicit impl( std::vector< keyword > v ) : tree( std::move( v ) ) {}
+    explicit impl( std::vector< item > v ) : tree( std::move( v ) ) {}
 
-    std::vector< keyword >* operator->() noexcept {
+    std::vector< item >* operator->() noexcept {
         return &this->tree;
     }
-    const std::vector< keyword >* operator->() const noexcept {
+    const std::vector< item >* operator->() const noexcept {
         return &this->tree;
     }
 
-    std::vector< keyword > tree;
+    std::vector< item > tree;
 };
 
-ast::ast() = default;
+ast::ast() : nodes( std::make_unique< impl >() ) {}
 ast::ast( ast&& ) = default;
 ast::ast( const ast& o ) : nodes( std::make_unique< impl >( *o.nodes.get() ) ) {}
 
@@ -34,10 +34,63 @@ ast& ast::operator=( const ast& o ) {
 
 ast::~ast() = default;
 
-ast::cur::cur( ast::impl& x ) : p( x ) {}
+ast::cur::cur( const ast& x ) : tree( x ) {}
 
 ast::cur ast::cursor() const {
-    return cur( *this->nodes.get() );
+    return cur( *this );
+}
+
+ast& ast::define_keyword( std::string key, ast::arity numrecords ) {
+    auto itr = this->reg.emplace( key, numrecords ).first;
+
+    if( itr->second != numrecords ) {
+        throw std::invalid_argument(
+            "keyword already defined with different arity"
+        );
+    }
+
+    return *this;
+}
+
+ast& ast::addkeyword( const std::string& key ) {
+    auto arity = this->reg.at( key );
+    return this->addkeyword( key, arity );
+}
+
+ast& ast::addkeyword( std::string key, ast::arity numrecords ) {
+    this->define_keyword( std::move( key ), numrecords );
+    this->nodes->tree.push_back( { key } );
+    this->keywordpos.push_back( this->nodes->tree.size() - 1 );
+    return *this;
+}
+
+ast& ast::addrecord() {
+    return *this;
+}
+
+ast& ast::endrecord() {
+    this->nodes->tree.push_back( { lun::item::endrec() } );
+    return *this;
+}
+
+ast& ast::additem( int x ) {
+    this->nodes->tree.push_back( { x } );
+    return *this;
+}
+
+ast& ast::additem( double x ) {
+    this->nodes->tree.push_back( { x } );
+    return *this;
+}
+
+ast& ast::additem( std::string x ) {
+    this->nodes->tree.push_back( { std::move( x ) } );
+    return *this;
+}
+
+ast& ast::additem() {
+    this->nodes->tree.push_back( { lun::item::none() } );
+    return *this;
 }
 
 namespace {
@@ -55,16 +108,67 @@ bool is_end( const item& x ) {
 
 }
 
+ast& ast::read( const std::string& str ) {
+    const auto tokens = tokenize( str.begin(), str.end() ).tokens;
+
+    const auto fst = tokens.begin();
+    const auto lst = tokens.end();
+    auto itr = fst;
+
+    while( true ) {
+        if( itr == lst ) break;
+
+        const auto& key = boost::get< std::string >( itr->val );
+        if( this->reg.count( key ) != 1 )
+            throw std::runtime_error( "Unknown keyword: " + key );
+
+        this->keywordpos.push_back( std::distance( fst, itr ) );
+
+        switch( this->reg.at( key ) ) {
+            case ast::arity::none: break;
+            case ast::arity::unary:
+                itr = std::find_if( itr, lst, is_end );
+                break;
+            case ast::arity::nary:
+                break;
+                while( true ) {
+                    itr = std::find_if( itr, lst, is_end );
+                    if( itr == lst ) {
+                        --itr;
+                        break;
+                    }
+
+                    if( is_end( *(itr+1) ) ) {
+                        ++itr;
+                        break;
+                    }
+                }
+                break;
+        }
+
+        ++itr;
+    }
+
+    this->nodes = std::make_unique< impl >( tokens );
+    return *this;
+}
+
+
 bool ast::cur::advance( ast::nodetype nt, int steps ) {
 
     auto keyword = [=]( ast::cur& cursor ) {
-        const auto& kws = cursor.p.tree;
-        const auto next = cursor.kw + steps;
+        const auto& tree = cursor.tree;
 
-        if( next < 0 || next >= kws.size() ) return false;
+        if( steps + cursor.kw >= tree.keywordpos.size()
+         or steps + cursor.kw < 0 )
+            return false;
 
-        cursor.kw = next;
-        cursor.item = 0;
+        cursor.kw += steps;
+        cursor.pos = tree.keywordpos[cursor.kw];
+
+        if( cursor.kw + 1 != tree.keywordpos.size()
+        and cursor.pos + 1 < tree.keywordpos[cursor.kw + 1] )
+            cursor.pos += 1;
 
         return true;
     };
@@ -75,13 +179,18 @@ bool ast::cur::advance( ast::nodetype nt, int steps ) {
     };
 
     auto record = [=]( auto& cursor ) {
-        const auto& items = cursor.p->at( cursor.kw ).xs;
-        if( items.empty() ) return false;
+        const auto& tree = cursor.tree;
+        const auto& tokens = tree.nodes->tree;
 
-        const auto current = items.begin() + cursor.item;
+        const auto current = tokens.begin() + cursor.pos;
+        const auto kwbegin = cursor.tree.keywordpos[ cursor.kw ];
+        const auto kwend = cursor.kw == cursor.tree.keywordpos.size() - 1
+                         ? tokens.size() - 1
+                         : cursor.tree.keywordpos[ cursor.kw + 1 ]
+                         ;
 
-        const auto begin = steps > 0 ? current           : std::begin( items );
-        const auto end   = steps > 0 ? std::end( items ) : current;
+        const auto begin = steps > 0 ? current : std::begin( tokens ) + kwbegin;
+        const auto end   = steps > 0 ? std::begin( tokens ) + kwend : current;
 
         const auto itr = std::find_if( begin, end, count );
 
@@ -91,28 +200,34 @@ bool ast::cur::advance( ast::nodetype nt, int steps ) {
         if( steps > 0 && std::distance( itr, end ) == 1 )
             return false;
 
-        cursor.item = std::distance( std::begin( items ), itr );
+        cursor.pos = std::distance( std::begin( tokens ), itr );
         return true;
     };
 
     auto item = [=]( auto& cursor ) {
-        const auto& items = cursor.p->at( cursor.kw ).xs;
-        const auto next = cursor.item + steps;
-
-        if( next < 0 || next >= items.size() )
+        const auto& tree = cursor.tree;
+        const auto& keywordpos = tree.keywordpos;
+        // TODO: Make all invariants/checks complete
+        if( keywordpos.at(cursor.kw + 1) - keywordpos.at(cursor.kw) == 1 )
             return false;
 
-        const auto min = std::min( cursor.item, next );
-        const auto max = std::max( cursor.item, next );
+        const auto& tokens = cursor.tree.nodes->tree;
+        const auto next = cursor.pos + steps;
 
-        const auto begin = items.begin() + min;
-        const auto end = items.begin() + max + 1;
+        if( next < 0 || next >= tokens.size() )
+            return false;
+
+        const auto min = std::min( cursor.pos, next );
+        const auto max = std::max( cursor.pos, next );
+
+        const auto begin = tokens.begin() + min;
+        const auto end = tokens.begin() + max + 1;
         const auto itr = std::find_if( begin, end, is_end );
 
-        if( itr != end )
+        if( itr < end )
             return false;
 
-        cursor.item = next;
+        cursor.pos = next;
         return true;
     };
 
@@ -133,48 +248,75 @@ bool ast::cur::prev( ast::nodetype nt ) {
     return this->advance( nt, -1 );
 }
 
+static std::string emptystr = "";
+struct getstr : boost::static_visitor< const std::string& > {
+    template< typename T >
+    const std::string& operator()( T )                    const { return emptystr; }
+    const std::string& operator()( const std::string& x ) const { return x; }
+};
+
+
 const std::string& ast::cur::name() const {
-    return this->p->at( this->kw ).name;
+    const auto& kw = this->tree.nodes->tree.at(
+            this->tree.keywordpos[ this->kw ]
+    );
+
+    const auto& key = boost::get< std::string >( kw.val );
+    return boost::apply_visitor( getstr(), kw.val );
 }
 
 int ast::cur::records() const {
-    const auto& items = this->p->at( this->kw ).xs;
-    if( items.empty() ) return 0;
+    const auto& tokens = this->tree.nodes->tree;
+    auto fst = std::begin( tokens ) + this->tree.keywordpos.at( this->kw );
+    // TODO: .at()/range check if this is last keyword
+    auto lst = this->kw + 1 == this->tree.keywordpos.size()
+             ? std::end( tokens )
+             : std::begin( tokens ) + this->tree.keywordpos.at( this->kw + 1 );
 
-    return std::count_if( items.begin(), items.end(), is_end );
+    return std::count_if( fst, lst, is_end );
 }
 
 int ast::cur::repeats() const {
-    const auto& items = this->p->at( this->kw ).xs;
-    if( items.empty() ) return -1;
-    return items.at( this->item ).repeat;
+    return this->tree.nodes->tree.at( this->pos ).repeat;
 }
 
 ast::type ast::cur::type() const {
-    const auto& items = this->p->at( this->kw ).xs;
-    if( items.empty() ) return ast::type::End;
+    const auto& tokens = this->tree.nodes->tree;
 
-    switch( items.at( this->item ).val.which() ) {
+    if( this->pos + 1 == tokens.size() )
+        return ast::type::End;
+
+    switch( tokens.at( this->pos ).val.which() ) {
         case 0: return ast::type::Int;
         case 1: return ast::type::Float;
         case 2: return ast::type::Str;
         case 3: return ast::type::None;
+
         default:
              throw std::runtime_error( "wrong type tag!" );
     }
 }
 
-ast parse( const std::string& str ) {
-    auto kws = parse( str.begin(), str.end() );
-    auto impl = std::make_unique< ast::impl >();
-    impl->tree = std::move( kws );
-    ast tree;
-    tree.nodes = std::move( impl );
-    return tree;
-}
-
-std::ostream& operator<<( std::ostream& stream, const ast::cur& cursor ) {
-    return stream << cursor.p->at( cursor.kw ).xs.at( cursor.item );
-}
+//parser& parser::add_toggle( std::string key ) {
+//    // TODO: verify( key )
+//    this->toggles.push_back( std::move( key ) );
+//    return *this;
+//}
+//
+//parser& parser::add_single( std::string key ) {
+//    // TODO: verify( key )
+//    this->singles.push_back( std::move( key ) );
+//    return *this;
+//}
+//
+//parser& parser::add_multi( std::string key ) {
+//    // TODO: verify( key )
+//    this->multis.push_back( std::move( key ) );
+//    return *this;
+//}
+//
+//std::ostream& operator<<( std::ostream& stream, const ast::cur& cursor ) {
+//    return stream << cursor.p->at( cursor.kw );
+//}
 
 }
